@@ -11,20 +11,8 @@ from loguru import logger
 
 import mllm_defake
 from mllm_defake.classifiers.mllm_classifier import MLLMClassifier
-from mllm_defake.vllms import VLLM
-
-SUPPORTED_MODELS = [
-    "gpt4o",
-    "gpt4omini",
-    "gpt45",
-    "llama32vi",
-    "llavacot",
-    "qvq",
-    "internvl25",
-    "onevision",
-    "qwen2vl",
-]
-SUPPORTED_DATASETS = ["WildFakeResampled", "ImageFolders", "WildFakeResampled20K", ""]
+from mllm_defake.defake_dataset import SUPPORTED_DATASETS
+from mllm_defake.vllms import SUPPORTED_MODELS, VLLM
 
 
 def find_prompt_file(prompt: str) -> dict:
