@@ -45,14 +45,18 @@ The core of the package is the `MLLMClassifier` class in `mllm_defake/classifier
 
 For external integrations, `MLLMClassifier.classify` can be used directly. It takes an image path (and label if desired) and returns a prediction.
 
-### 2. Implementing new MLLMs by editing `vllms.py`
+### 2. Implementing new MLLMs by editing [`vllms.py`](mllm_defake/vllms/vllm.py)
 
 Currently, supported models include:
 - GPT-4o (`gpt4o`)
 - GPT-4o-Mini (`gpt4omini`)
+- GPT-4.5 (`gpt45`)
 - [Llama-3.2-11B-Vision-Instruct](https://huggingface.co/meta-llama/Llama-3.2-11B-Vision-Instruct) (`llama32vi`)
 - [Llama-3.2V-11B-CoT](https://huggingface.co/Xkev/Llama-3.2V-11B-cot) (`llama32vcot`)
 - [QVQ-72B-Preview](https://huggingface.co/Qwen/QVQ-72B-Preview) (`qvq`)
+- [InternVL-2.5-26B](https://huggingface.co/OpenGVLab/InternVL2_5-26B) (`internvl25`)
+- [LLaVA-OneVision](https://huggingface.co/llava-hf/llava-onevision-qwen2-7b-ov-hf) (`onevision`, using `llava-hf` version)
+- Qwen-[2-](https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct) and [2.5-](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct)VL (`qwen2vl`)
 
 More models can be added by extending the base class to your needs.
 
