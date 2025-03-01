@@ -57,8 +57,8 @@ def find_roi_adaptive(image: np.ndarray) -> np.ndarray:
     )
 
     # Apply perspective transform
-    M = cv2.getPerspectiveTransform(src_pts, dst_pts)
-    roi = cv2.warpPerspective(image, M, (width, height))
+    m = cv2.getPerspectiveTransform(src_pts, dst_pts)
+    roi = cv2.warpPerspective(image, m, (width, height))
 
     return roi
 
@@ -88,9 +88,7 @@ def find_roi_pyramid(image, scale_factor=1.5, min_size=(30, 30)):
             break
 
         pyramid.append(current_img)
-        current_img = cv2.resize(
-            current_img, (int(w / scale_factor), int(h / scale_factor))
-        )
+        current_img = cv2.resize(current_img, (int(w / scale_factor), int(h / scale_factor)))
 
     # Process each scale
     roi_candidates = []
@@ -100,9 +98,7 @@ def find_roi_pyramid(image, scale_factor=1.5, min_size=(30, 30)):
         edges = cv2.Canny(scaled, 50, 150)
 
         # Find contours
-        contours, _ = cv2.findContours(
-            edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if contours:
             # Get the largest contour

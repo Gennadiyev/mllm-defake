@@ -35,9 +35,7 @@ def load_model(model: str) -> VLLM:
 
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError(
-                "OPENAI_API_KEY environment variable not set but required for GPT-4o."
-            )
+            raise ValueError("OPENAI_API_KEY is required for GPT-4o.")
         proxy = os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY")
         return GPT4o(api_key=api_key, proxy=proxy)
     elif model == "gpt-4o-mini" or model == "gpt4omini":
@@ -45,9 +43,7 @@ def load_model(model: str) -> VLLM:
 
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError(
-                "OPENAI_API_KEY environment variable not set but required for GPT-4o-mini."
-            )
+            raise ValueError("OPENAI_API_KEY is required for GPT-4o-mini.")
         proxy = os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY")
         if proxy is None:
             logger.warning("Starting GPT-4o-mini inference without a proxy.")
@@ -57,9 +53,7 @@ def load_model(model: str) -> VLLM:
 
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError(
-                "OPENAI_API_KEY environment variable not set but required for GPT-4.5-preview."
-            )
+            raise ValueError("OPENAI_API_KEY is required for GPT-4.5-preview.")
         proxy = os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY")
         if proxy is None:
             logger.warning("Starting GPT-4.5-preview inference without a proxy.")
@@ -119,23 +113,17 @@ def load_samples(
         from mllm_defake.defake_dataset import ImageFolders
 
         if not real_dir or not fake_dir:
-            raise ValueError(
-                "If `--dataset` is empty, `--real_dir` and `--fake_dir` must be specified."
-            )
+            raise ValueError("If `--dataset` is empty, `--real_dir` and `--fake_dir` must be specified.")
         dataset = ImageFolders(real_dir, fake_dir)
     else:
         raise ValueError(f"Invalid dataset: {dataset}")
     real_samples, fake_samples = dataset.list_images()
     if count < len(real_samples):
         real_samples = random.sample(real_samples, count)
-        logger.debug(
-            f"Sampling {count} / {len(real_samples)} real samples from {dataset}"
-        )
+        logger.debug(f"Sampling {count} / {len(real_samples)} real samples from {dataset}")
     if count < len(fake_samples):
         fake_samples = random.sample(fake_samples, count)
-        logger.debug(
-            f"Sampling {count} / {len(fake_samples)} fake samples from {dataset}"
-        )
+        logger.debug(f"Sampling {count} / {len(fake_samples)} fake samples from {dataset}")
     logger.info(
         "Loaded {} real samples and {} fake samples from {}",
         len(real_samples),
@@ -165,15 +153,15 @@ def load_samples(
     help="Verbose. Set if you would like to see every step of the classification process, including the model's full response.",
     is_flag=True,
 )
-@click.argument(
-    "image_path", type=click.Path(exists=True, file_okay=True, dir_okay=False)
-)
+@click.argument("image_path", type=click.Path(exists=True, file_okay=True, dir_okay=False))
 def classify(model: str, prompt: str, image_path: str, verbose: bool):
     """
     Classify a single image as real or fake using the specified model.
 
     IMAGE_PATH: Path to the image file to classify.
     """
+    log_file = "logs/classify.log"
+    logger.add(log_file, rotation="2 MB", backtrace=True, diagnose=True)
     try:
         # Load prompt & model
         prompt_config = find_prompt_file(prompt)
@@ -198,7 +186,7 @@ def classify(model: str, prompt: str, image_path: str, verbose: bool):
         print(result)
 
     except Exception as e:
-        logger.error(f"Error during classification: {str(e)}")
+        logger.error(f"Error during classification: {e!s}")
         print("unknown")
         sys.exit(1)
 
@@ -208,7 +196,7 @@ def classify(model: str, prompt: str, image_path: str, verbose: bool):
     "-p",
     "--prompt",
     help="The name or path to the prompt v3 JSON file. Please refer to `prompts/readme.md` for format details. If a name is given, the corresponding JSON file should be placed under `prompts/` or its subdirectories. Note that the name of the prompt file must be unique, otherwise the first match will be used.",
-    default="prompts/v3/simple.json",
+    default="simple",
 )
 @click.option(
     "-m",
@@ -369,9 +357,7 @@ def infer(
     continue_df = None
     if dataset == "" or dataset == "ImageFolders":
         if not real_dir or not fake_dir:
-            raise ValueError(
-                "If `--dataset` is empty, `--real_dir` and `--fake_dir` must be specified."
-            )
+            raise ValueError("If `--dataset` is empty, `--real_dir` and `--fake_dir` must be specified.")
         dataset = "ImageFolders"
         real_samples, fake_samples = load_samples(dataset, count, real_dir, fake_dir)
     else:
@@ -381,12 +367,8 @@ def infer(
             continue_df = pd.read_csv(output_path)
             already_processed_reals: int = continue_df["label"].sum()
             already_processed_fakes: int = len(continue_df) - already_processed_reals
-            processed_reals: list[Path] = (
-                continue_df[continue_df["label"] == 1]["path"].apply(Path).tolist()
-            )
-            processed_fakes: list[Path] = (
-                continue_df[continue_df["label"] == 0]["path"].apply(Path).tolist()
-            )
+            processed_reals: list[Path] = continue_df[continue_df["label"] == 1]["path"].apply(Path).tolist()
+            processed_fakes: list[Path] = continue_df[continue_df["label"] == 0]["path"].apply(Path).tolist()
             logger.info(
                 "Continuing evaluation from {} ({} real and {} fake samples already processed)",
                 output_path,
@@ -395,21 +377,15 @@ def infer(
             )
             reduce_count_reals = max(0, len(real_samples) - already_processed_reals)
             reduce_count_fakes = max(0, len(fake_samples) - already_processed_fakes)
-            real_samples = [s for s in real_samples if s not in processed_reals][
-                :reduce_count_reals
-            ]
-            fake_samples = [s for s in fake_samples if s not in processed_fakes][
-                :reduce_count_fakes
-            ]
+            real_samples = [s for s in real_samples if s not in processed_reals][:reduce_count_reals]
+            fake_samples = [s for s in fake_samples if s not in processed_fakes][:reduce_count_fakes]
             logger.info(
                 "{} real and {} fake samples remaining to be processed",
                 len(real_samples),
                 len(fake_samples),
             )
         else:
-            logger.warning(
-                "Output file not found for continuing evaluation, restarting from scratch."
-            )
+            logger.warning("Output file not found for continuing evaluation, restarting from scratch.")
     else:
         if output_path.exists():
             logger.warning(
@@ -430,32 +406,28 @@ def infer(
         real_samples = []
 
     if job_split is not None and job_split != "":
-        try:
-            m, n = map(int, job_split.split("/"))
-            if m < 0 or n < 1 or m > n:
-                raise ValueError("Invalid job split.")
-            real_start_index, real_end_index = (
-                len(real_samples) * (m - 1) // n,
-                len(real_samples) * m // n,
-            )
-            fake_start_index, fake_end_index = (
-                len(fake_samples) * (m - 1) // n,
-                len(fake_samples) * m // n,
-            )
-            real_samples = real_samples[real_start_index:real_end_index]
-            fake_samples = fake_samples[fake_start_index:fake_end_index]
-            logger.info(
-                "Job split {}/{} - Real samples: {}-{}, Fake samples: {}-{}",
-                m,
-                n,
-                real_start_index,
-                real_end_index,
-                fake_start_index,
-                fake_end_index,
-            )
-        except ValueError as e:
-            logger.error("Invalid job split: {}", e)
-            sys.exit(1)
+        m, n = map(int, job_split.split("/"))
+        if m < 0 or n < 1 or m > n:
+            raise ValueError("Invalid job split.")
+        real_start_index, real_end_index = (
+            len(real_samples) * (m - 1) // n,
+            len(real_samples) * m // n,
+        )
+        fake_start_index, fake_end_index = (
+            len(fake_samples) * (m - 1) // n,
+            len(fake_samples) * m // n,
+        )
+        real_samples = real_samples[real_start_index:real_end_index]
+        fake_samples = fake_samples[fake_start_index:fake_end_index]
+        logger.info(
+            "Job split {}/{} - Real samples: {}-{}, Fake samples: {}-{}",
+            m,
+            n,
+            real_start_index,
+            real_end_index,
+            fake_start_index,
+            fake_end_index,
+        )
 
     classifier = MLLMClassifier(prompt, model, real_samples, fake_samples)
     if not output:
@@ -467,12 +439,11 @@ def infer(
             log_id=f"_{log_id}" if log_id else "",
         )
         readable_output_path: Path = Path("outputs") / readable_output_name
+    elif output.endswith(".csv"):
+        readable_output_path = Path(output)
     else:
-        if output.endswith(".csv"):
-            readable_output_path = Path(output)
-        else:
-            readable_output_name = f"{output}.csv"
-            readable_output_path = Path("outputs") / readable_output_name
+        readable_output_name = f"{output}.csv"
+        readable_output_path = Path("outputs") / readable_output_name
     readable_output_path.parent.mkdir(parents=True, exist_ok=True)
     logger.success("Starting evaluation with output: {}", readable_output_path)
     classifier.evaluate(
@@ -552,27 +523,16 @@ def doc_writer(experiment_name: str) -> None:
     accuracy = accuracy_score(df["label"], df["pred"])
     precision = precision_score(df["label"], df["pred"], zero_division=0)
     recall = recall_score(df["label"], df["pred"], zero_division=0)
-    real_accuracy = len(df[(df["label"] == 1) & (df["pred"] == 1)]) / max(
-        1, df["label"].sum()
-    )
-    fake_accuracy = len(df[(df["label"] == 0) & (df["pred"] == 0)]) / max(
-        1, (1 - df["label"]).sum()
-    )
+    real_accuracy = len(df[(df["label"] == 1) & (df["pred"] == 1)]) / max(1, df["label"].sum())
+    fake_accuracy = len(df[(df["label"] == 0) & (df["pred"] == 0)]) / max(1, (1 - df["label"]).sum())
 
     metric_str = (
-        "Metrics {}\n"
-        + " - Overall Accuracy: {:.3f} %\n"
-        + " - Precision: {:.3f} %\n"
-        + " - Recall: {:.3f} %\n"
-        + " - Acc. on real images: {:.3f} %\n"
-        + " - Acc. on fake images: {:.3f} %"
-    ).format(
-        real_experiment_name,
-        accuracy * 100,
-        precision * 100,
-        recall * 100,
-        real_accuracy * 100,
-        fake_accuracy * 100,
+        f"Metrics {real_experiment_name}\n"
+        f" - Overall Accuracy: {accuracy * 100:.3f} %\n"
+        f" - Precision: {precision * 100:.3f} %\n"
+        f" - Recall: {recall * 100:.3f} %\n"
+        f" - Acc. on real images: {real_accuracy * 100:.3f} %\n"
+        f" - Acc. on fake images: {fake_accuracy * 100:.3f} %"
     )
 
     # Split dataframe into correct and wrong predictions
@@ -586,31 +546,22 @@ def doc_writer(experiment_name: str) -> None:
     logger.info(metric_str)
 
     def write_table_rows(f, df_subset, markdown_dir):
-        for i, row in df_subset.iterrows():
+        for _, row in df_subset.iterrows():
             image_name = Path(row["path"]).name
             image_path = Path(row["path"]).resolve()
             common_root = os.path.commonpath([image_path, markdown_dir])
             layers_up_to_common_root = len(markdown_dir.relative_to(common_root).parts)
             rel_to_image_path = image_path.relative_to(common_root)
             rel_path_str = "../" * layers_up_to_common_root + str(rel_to_image_path)
-            response_edited = (
-                row["response"]
-                .replace("\n", "<br>")
-                .replace(" ", " ")
-                .replace("|", "\\|")
-            )
+            response_edited = row["response"].replace("\n", "<br>").replace(" ", " ").replace("|", "\\|")
             gt = "gen'd" if row["label"] == 0 else "real"
             pred = "gen'd" if row["pred"] == 0 else "real"
-            f.write(
-                f"| ![Image {image_name}]({rel_path_str}) | {gt} | {pred} | {response_edited} |\n"
-            )
+            f.write(f"| ![Image {image_name}]({rel_path_str}) | {gt} | {pred} | {response_edited} |\n")
 
     with open(f"outputs/{real_experiment_name}.md", "w", encoding="utf-8") as f:
         f.write(f"# Experiment Results - `{real_experiment_name}`\n\n")
         f.write("## Metrics\n\n")
-        f.write(
-            f"- *{total_images} images, {count_real} real, {count_fake} generated.*\n\n"
-        )
+        f.write(f"- *{total_images} images, {count_real} real, {count_fake} generated.*\n\n")
         if fails > 0:
             f.write(f"- *{fails} failed predictions were filtered out.*\n\n")
         f.write(f"```\n{metric_str}\n```\n\n")
@@ -632,9 +583,7 @@ def doc_writer(experiment_name: str) -> None:
 
         f.write(f"Created by {mllm_defake.__name__} - `v{mllm_defake.__version__}`")
 
-    logger.success(
-        "Saved the experiment results to outputs/{}.md", real_experiment_name
-    )
+    logger.success("Saved the experiment results to outputs/{}.md", real_experiment_name)
     d_, m_, p_, c_ = guess_experiment_setup_from_path(Path(real_experiment_name))
     return {
         "experiment_name": real_experiment_name,
@@ -670,6 +619,8 @@ def doc(experiment_name, summarize_to):
 
     EXPERIMENT_NAME: The name of the experiment to compute the metrics for. You may use a CSV path instead of an experiment name. By default, the script will look for the CSV file under `outputs/`.
     """
+    log_file = "logs/doc.log"
+    logger.add(log_file, rotation="2 MB", backtrace=True, diagnose=True)
     if experiment_name == "all":
         res = {}
         for path in Path("outputs/").rglob("*.csv"):

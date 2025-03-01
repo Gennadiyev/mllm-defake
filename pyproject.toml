@@ -1,6 +1,6 @@
 [project]
 name = "mllm_defake"
-version = "0.4.1"
+version = "0.4.2"
 description = 'A flexible & scalable MLLM-based AIGC detection pipeline'
 readme = {"file" = "readme.md", "content-type" = "text/markdown"}
 requires-python = ">=3.10"
@@ -22,11 +22,11 @@ dependencies = [
     "Pillow",
     "tabulate",
     "opencv-python",
-    "filetype",
+    "filetype"
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "black", "isort", "pytest-cov"]
+dev = ["pytest", "ruff", "isort", "pytest-cov"]
 
 [project.scripts]
 mllmdf = "mllm_defake.cli:main_cli"
@@ -44,3 +44,7 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["mllm_defake"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B"]
+# ignore = ["E501"]

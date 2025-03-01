@@ -2,9 +2,7 @@ from mllm_defake.utils import encode_image_to_base64
 
 
 def v1(cache: dict) -> None:
-    cache["few_shot_image_url_0"] = encode_image_to_base64(
-        r"WildFakeResampled\real\3739320002682.jpg"
-    )
+    cache["few_shot_image_url_0"] = encode_image_to_base64(r"WildFakeResampled\real\3739320002682.jpg")
     cache[
         "few_shot_result_0"
     ] = """The image showcases a beautifully restored classic GMC pickup truck, likely from the 1960s. The vehicle features a deep maroon paint job, a customized lowered stance, and large chrome wheels. The front grille and bumper are polished to a mirror-like shine, reflecting the surroundings. The hood has a subtle raised center section, adding to the aggressive yet classic aesthetic. The background consists of leafless trees, a concrete sidewalk, and some parked cars, indicating a late autumn or winter setting.
