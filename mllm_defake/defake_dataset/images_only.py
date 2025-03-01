@@ -5,6 +5,7 @@ from torch.utils.data import Dataset
 
 
 class RealFakeDataset(ABC, Dataset):
+    @abstractmethod
     def __init__(self):
         pass
 
@@ -78,6 +79,4 @@ class WildFakeResampled(RealFakeDataset):
         self.fake_images = self.data_root / "fake"
 
     def list_images(self) -> tuple[list[Path], list[Path]]:
-        return [x for x in self.real_images.iterdir()], [
-            x for x in self.fake_images.iterdir()
-        ]
+        return [x for x in self.real_images.iterdir()], [x for x in self.fake_images.iterdir()]

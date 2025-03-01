@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from torch.utils.data import Dataset
 
-class BboxReasonDataset(ABC):
+
+class BboxReasonDataset(ABC, Dataset):
+    @abstractmethod
     def __init__(self):
         pass
 
@@ -16,9 +19,7 @@ class BboxReasonDataset(ABC):
         return [], []
 
     @abstractmethod
-    def get_bbox_reason(
-        self, image_path: Path
-    ) -> list[list[tuple[int, int, int, int]], str]:
+    def get_bbox_reason(self, image_path: Path) -> list[list[tuple[int, int, int, int]], str]:
         """
         This method returns the bounding boxes and reasons for the fake images.
 
