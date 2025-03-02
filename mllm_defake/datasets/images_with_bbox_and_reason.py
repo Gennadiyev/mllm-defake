@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from pathlib import Path
 
 from mllm_defake.datasets.images_only import RealFakeDataset
