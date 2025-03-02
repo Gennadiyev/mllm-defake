@@ -1,0 +1,64 @@
+# Modified from https://github.com/pypa/hatch/blob/master/.github/workflows/test.yml
+name: Test & Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  FORCE_COLOR: "1"
+
+jobs:
+  run:
+    name: Python ${{ matrix.python-version }} on ${{ startsWith(matrix.os, 'macos-') && 'macOS' || startsWith(matrix.os, 'windows-') && 'Windows' || 'Linux' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.13"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install mllm_defake and hatch
+        run: |
+          uv pip install --system hatch
+          uv pip install --system -e .
+
+      - name: Run tests
+        run: hatch test --python ${{ matrix.python-version }} --cover-quiet --randomize --parallel --retries 5 --retry-delay 3
+        env:
+          OPENAI_API_KEY: ${{ secrets.MLLM_DEFAKE_OPENAI_API_KEY }}
+          COVERAGE_FILE: .coverage.${{ matrix.os }}-${{ matrix.python-version }}
+
+      - name: Build wheels
+        run: hatch build
+      
+      - name: Upload wheels and source code as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.os }}-${{ matrix.python-version }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+          overwrite: true

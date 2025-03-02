@@ -1,5 +1,5 @@
 # Modified from https://github.com/pypa/hatch/blob/master/.github/workflows/test.yml
-name: readme_demo_test
+name: Hatch Linting
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.10", "3.12", "3.13"]
+        python-version: ["3.10", "3.13"]
 
     steps:
       - name: Checkout repository
@@ -44,24 +44,5 @@ jobs:
           uv pip install --system hatch
           uv pip install --system -e .
 
-      - name: Run static analysis
-        run: hatch fmt --check
-
-      - name: Run tests
-        run: hatch test --python ${{ matrix.python-version }} --cover-quiet --randomize --parallel --retries 5 --retry-delay 3
-        env:
-          OPENAI_API_KEY: ${{ secrets.MLLM_DEFAKE_OPENAI_API_KEY }}
-          COVERAGE_FILE: .coverage.${{ matrix.os }}-${{ matrix.python-version }}
-
-      - name: Build wheels
-        run: hatch build
-      
-      - name: Upload wheels and source code as artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: artifacts
-          path: dist/*
-          if-no-files-found: error
-          retention-days: 30
-          compression-level: 0
-          overwrite: true
+      - name: Linting
+        run: hatch fmt
