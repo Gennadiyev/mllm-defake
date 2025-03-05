@@ -27,3 +27,15 @@ __all__ = [
     "Llama32VisionInstruct",
     "LLaVAOneVision",
 ]
+
+SUPPORTED_MODELS = [
+    "gpt4o",
+    "gpt4omini",
+    "gpt45",
+    "llama32vi",
+    "llavacot",
+    "qvq",
+    "internvl25",
+    "onevision",
+    "qwen2vl",
+]

@@ -92,7 +92,7 @@ class OpenAICompat(VLLM):
         """
         Initialize the OpenAICompat class of Vision-LLM models. Provide the API key and optionally a proxy URL. Will populate self.api_key, self.http_client, and self.client.
 
-        This class is meant to be used in conjunction with a self-hosted VLLM server instance. It also assumes that only one model is available on the server, otherwise the first model will be used, since VLLM may use folder names with trailing slashes as model names. However, this can be overridden by setting the model_name attribute after initializing this class (as is done in the GPT4o and GPT4oMini classes).
+        This class is meant to be used in conjunction with a self-hosted VLLM server instance. By default, it will automatically select the first model available on the server, as VLLM may use folder names with trailing slashes as model names. However, this can be overridden by setting the model_name attribute after initializing this class (as is done in the GPT4o and GPT4oMini classes).
 
         @param api_key: The API key for the VLLM server.
         @param proxy: The proxy URL to use for the HTTP client, defaults to None, which uses the default OpenAI httpx client.
@@ -193,7 +193,8 @@ class Llama32VisionCoT(OpenAICompat):
     """
     Implementation of Llama 3.2 Vision Chain-of-Thought model.
     Uses the OpenAI-compatible interface for inference with images.
-    Modifies system prompts to work with this specific model.
+
+    Will merge system prompt to user prompt if system prompt is provided, as this model does not support system prompts.
     """
 
     def __init__(self, api_key: str, proxy: str | None = None, base_url: str | None = None):
@@ -220,7 +221,8 @@ class QVQ(OpenAICompat):
     """
     Implementation of QVQ Vision model.
     Uses the OpenAI-compatible interface for inference with images.
-    Modifies system prompts to work with this specific model.
+
+    Will merge system prompt to user prompt if system prompt is provided, as this model does not support system prompts.
     """
 
     def __init__(self, api_key: str, proxy: str | None = None, base_url: str | None = None):
@@ -283,7 +285,7 @@ class LLaVAOneVision(OpenAICompat):
 
 class Qwen2VL(OpenAICompat):
     """
-    Implementation of Qwen 2 Vision Language model.
+    Implementation of Qwen 2- & 2.5-VL model.
     Uses the OpenAI-compatible interface for inference with images.
     """
 

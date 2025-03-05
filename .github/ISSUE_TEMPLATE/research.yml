@@ -1,0 +1,49 @@
+name: Research-Related
+description: Want new research ideas to show up in mllm-defake? Found a replication fault?
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # 🔎 MLLM-Defake Research Issue Template
+
+        This project is intended for researchers, developers and users. If you have a **research-related** problem, suggestion or question, you may create an issue here by following the steps below.
+
+        >[!WARNING]
+        > - Please make sure to **search for existing issues** before creating a new one. If you find an existing issue that matches your problem or highly relates to it, you can comment on the existing issue instead of creating a new one.
+        > - Your issue may be better put in the [Discussions](https://github.com/Gennadiyev/mllm-defake/discussions) section if it is a general research-related inquiry. GitHub Issues are not for support requests or general questions.
+
+  - type: dropdown
+    attributes:
+      label: Type
+      options:
+        - Problem (e.g. wrong replications of existing models)
+        - Suggestion (e.g. adapt to new datasets)
+        - Others (please read the warning above before creating)
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Description
+      description: Describe the problem, suggestion or question you have. Make sure to include URLs to relevant papers, datasets, repositories, or other resources if applicable.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: (Optional) Screenshots or videos
+      description: Add screenshots or videos that show the bug here.
+      placeholder: Drag and drop the screenshots/videos into this box.
+    validations:
+      required: false
+  - type: input
+    attributes:
+      label: Version
+      description: Please run `pip show mllm-defake` and paste the version here.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: (Optional) Logs
+      placeholder: Drag and drop the log files into this box.
+    validations:
+      required: false
+      

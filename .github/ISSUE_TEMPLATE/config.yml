@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+    - name: Discussions
+      url: https://github.com/Gennadiyev/mllm-defake/discussions
+      about: General support and non-issue research-related inquiries

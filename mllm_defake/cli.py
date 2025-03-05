@@ -11,20 +11,8 @@ from loguru import logger
 
 import mllm_defake
 from mllm_defake.classifiers.mllm_classifier import MLLMClassifier
-from mllm_defake.vllms import VLLM
-
-SUPPORTED_MODELS = [
-    "gpt4o",
-    "gpt4omini",
-    "gpt45",
-    "llama32vi",
-    "llavacot",
-    "qvq",
-    "internvl25",
-    "onevision",
-    "qwen2vl",
-]
-SUPPORTED_DATASETS = ["WildFakeResampled", "ImageFolders", "WildFakeResampled20K", ""]
+from mllm_defake.datasets import SUPPORTED_DATASETS
+from mllm_defake.vllms import SUPPORTED_MODELS, VLLM
 
 
 def find_prompt_file(prompt: str) -> dict:
@@ -114,15 +102,15 @@ def load_samples(
     dataset: str, count: int, real_dir: Path | None = None, fake_dir: Path | None = None
 ) -> tuple[list[Path], list[Path]]:
     if dataset == "WildFakeResampled":
-        from mllm_defake.defake_dataset import WildFakeResampled
+        from mllm_defake.datasets import WildFakeResampled
 
         dataset = WildFakeResampled()
     elif dataset == "WildFakeResampled20K":
-        from mllm_defake.defake_dataset import WildFakeResampled
+        from mllm_defake.datasets import WildFakeResampled
 
         dataset = WildFakeResampled("./WildFakeResampled20K")
     elif dataset == "ImageFolders":
-        from mllm_defake.defake_dataset import ImageFolders
+        from mllm_defake.datasets import ImageFolders
 
         if not real_dir or not fake_dir:
             raise ValueError("If `--dataset` is empty, `--real_dir` and `--fake_dir` must be specified.")

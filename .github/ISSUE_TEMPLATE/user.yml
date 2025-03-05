@@ -1,0 +1,47 @@
+name: User-Related
+description: Found a bug, or some feature do not work as expected? Let us know!
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # 🪄 MLLM-Defake User Issue Template
+
+        This project is intended for researchers, developers and users. Rest assured that your issue will be addressed at the same priority as research-related issues. 
+        
+        Before asking, please make sure that your problem is not mentioned in both open and closed issues, and does not fit in the [Discussions](https://github.com/Gennadiyev/mllm-defake/discussions) section. If you find an existing issue that matches your problem or highly relates to it, you can comment on the existing issue instead of creating a new one.
+
+  - type: dropdown
+    attributes:
+      label: Type
+      options:
+        - Potential Bug
+        - Feature Request
+        - Others
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Description
+      description: Describe the problem, suggestion or question you have. Make sure to cite the relevant code snippets, clearly indicate the error messages, and, if possible, share your run logs if you deem necessary.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: (Optional) Screenshots or videos
+      description: Add screenshots or videos that show the bug here.
+      placeholder: Drag and drop the screenshots/videos into this box.
+    validations:
+      required: false
+  - type: input
+    attributes:
+      label: Version
+      description: Please run `pip show mllm-defake` and paste the version here. Do not write "latest" or "newest" in this field as it is not informative.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: (Optional) Logs
+      placeholder: Drag and drop the log files into this box.
+    validations:
+      required: false
+      
