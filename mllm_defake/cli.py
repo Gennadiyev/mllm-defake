@@ -12,6 +12,7 @@ from loguru import logger
 import mllm_defake
 from mllm_defake.classifiers.mllm_classifier import MLLMClassifier
 from mllm_defake.datasets import SUPPORTED_DATASETS
+from mllm_defake.finetune import SUPPORTED_CONFIGS
 from mllm_defake.vllms import SUPPORTED_MODELS, VLLM
 
 
@@ -637,6 +638,44 @@ def doc(experiment_name, summarize_to):
     doc_writer(experiment_name)
 
 
+@click.command()
+@click.argument("config", type=str, default="")
+@click.option(
+    "-ls",
+    "--list_configs",
+    help="List all pre-defined supported finetuning configurations.",
+    is_flag=True,
+)
+def finetune(config, list_configs):
+    """
+    Finetune the model using the specified configuration.
+    
+    CONFIG: local file in yml format, or one of the pre-defined supported configurations.
+    """
+    if list_configs:
+        logger.info("Pre-defined supported finetuning configurations:")
+        for k in SUPPORTED_CONFIGS:
+            logger.info(f" - {k}")
+        return
+    # check if config is a pre-defined config or a existing file
+    if not (config in SUPPORTED_CONFIGS or Path(config).exists()):
+        logger.error(f"Invalid config: {config}")
+        return
+    config = SUPPORTED_CONFIGS.get(config, config)
+    # get train mode
+    train_mode = config.split("/")[-1].split("_")[0]
+    if train_mode == "sft":
+        from mllm_defake.finetune.sft import sft_train
+        sft_train(config)
+    elif train_mode == "grpo":
+        from mllm_defake.finetune.grpo import grpo_train
+        grpo_train(config)
+    else:
+        logger.error(f"Invalid train mode: {train_mode}"
+                     "train model is defined by the first part of the config file name, e.g. sft_qwen2_5_vl_3b.yml. "
+                     "supported train modes: sft, grpo")
+
+
 @click.group()
 def main_cli():
     pass
@@ -645,6 +684,7 @@ def main_cli():
 main_cli.add_command(classify)
 main_cli.add_command(infer)
 main_cli.add_command(doc)
+main_cli.add_command(finetune)
 
 
 if __name__ == "__main__":

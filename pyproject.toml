@@ -13,7 +13,7 @@ dependencies = [
     "click>=8.0.1",
     "orjson",
     "pandas>=2",
-    "numpy>=2",
+    "numpy<2",
     "loguru",
     "tqdm",
     "openai",
@@ -28,6 +28,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "isort", "pytest-cov"]
+finetune = ["ms-swift==3.2.0.post2", "qwen_vl_utils>=0.0.6"]
 
 [project.scripts]
 mllmdf = "mllm_defake.cli:main_cli"
