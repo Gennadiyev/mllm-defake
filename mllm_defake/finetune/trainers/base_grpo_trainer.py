@@ -1,14 +1,21 @@
+import os
+import textwrap
 from abc import abstractmethod
 from collections import defaultdict
+from packaging import version
 
 import torch
+import transformers
 from accelerate.utils import is_peft_model, set_seed
 from datasets import Dataset, IterableDataset
 from peft import PeftConfig, get_peft_model
 from transformers import AutoProcessor, AutoTokenizer, GenerationConfig, PreTrainedModel, Trainer, TrainerCallback
 from transformers.integrations.deepspeed import is_deepspeed_zero3_enabled
 from trl.models import create_reference_model, prepare_deepspeed, unwrap_model_for_generation
-from trl.trainer.grpo_config import GRPOConfig
+from trl.trainer.utils import generate_model_card
+
+from mllm_defake.finetune.trainers.grpo_config import GRPOConfig
+from mllm_defake.finetune.trainers.sampler import RepeatRandomSampler
 
 
 class BaseGRPOTrainer(Trainer):
@@ -60,6 +67,10 @@ class BaseGRPOTrainer(Trainer):
         self.ref_model = self._build_ref_model(model, model_name_or_path, model_init_kwargs, peft_config)
         # reward
         self.reward_function = reward_cls(**reward_config)
+        if not hasattr(self.reward_function, "num_functions"):
+            raise ValueError("The reward class must have an attribute `num_functions`.")
+        if not hasattr(self.reward_function, "reward_names"):
+            raise ValueError("The reward class must have an attribute `reward_names`.")
         # train arguments
         self.max_prompt_length = None
         self.max_completion_length = args.max_completion_length  # = |o_i| in the GRPO paper
@@ -234,10 +245,10 @@ class BaseGRPOTrainer(Trainer):
             ref_model = None
         return ref_model
 
-    def compute_loss(self, model: PreTrainedModel, inputs: dict, return_outputs=False, num_items_in_batch=None):
+    def compute_loss(self, model: PreTrainedModel, inputs: list[dict], return_outputs=False, num_items_in_batch=None):
         if return_outputs:
             raise ValueError("The GRPOTrainer does not support returning outputs")
-        
+
         # check if we need to generate new completions or use buffered ones
         if self.state.global_step % self.num_iterations == 0:
             # generate new
@@ -247,22 +258,74 @@ class BaseGRPOTrainer(Trainer):
             # use buffered
             inputs = self._buffered_inputs[self._step % self.args.gradient_accumulation_steps]
         self._step += 1
-        # TODO
-    
-    def _generate_and_score_completions(self, model: PreTrainedModel, inputs: dict) -> dict:
+        # get the prepared inputs
+        prompt_ids, prompt_mask = inputs["prompt_ids"], inputs["prompt_mask"]
+        completion_ids, completion_mask = inputs["completion_ids"], inputs["completion_mask"]
+        others = inputs["others"]
+        # concatenate for full sequence
+        input_ids = torch.cat([prompt_ids, completion_ids], dim=1)
+        attention_mask = torch.cat([prompt_mask, completion_mask], dim=1)
+
+        # get the current policy's log probabilities
+        per_token_logps = self._get_per_token_logps(
+            model, others.update({"input_ids": input_ids, "attention_mask": attention_mask})
+        )
+        # get rid of the prompt (-1 because of the shift done in get_per_token_logps)
+        per_token_logps = per_token_logps[:, prompt_ids.size(1) - 1 :]
+
+        # get the advantages
+        advantages = inputs["advantages"]
+
+        # when using num_iterations == 1, old_per_token_logps == per_token_logps, so we can skip its computation
+        # and use per_token_logps.detach() instead
+        old_per_token_logps = inputs["old_per_token_logps"] if self.num_iterations > 1 else per_token_logps.detach()
+
+        # compute the policy ratio and clipped version
+        coef_1 = torch.exp(per_token_logps - old_per_token_logps)
+        coef_2 = torch.clamp(coef_1, 1 - self.epsilon, 1 + self.epsilon)
+        per_token_loss1 = coef_1 * advantages.unsqueeze(1)
+        per_token_loss2 = coef_2 * advantages.unsqueeze(1)
+        per_token_loss = -torch.min(per_token_loss1, per_token_loss2)
+
+        # add KL penalty if beta > 0
+        if self.beta > 0:
+            ref_per_token_logps = inputs["ref_per_token_logps"]
+            per_token_kl = (
+                torch.exp(ref_per_token_logps - per_token_logps) - (ref_per_token_logps - per_token_logps) - 1
+            )
+            per_token_loss = per_token_loss + self.beta * per_token_kl
+
+            # log KL divergence
+            mean_kl = ((per_token_kl * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)).mean()
+            self._metrics["kl"].append(self.accelerator.gather_for_metrics(mean_kl).mean().item())
+
+        # compute final loss
+        loss = ((per_token_loss * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)).mean()
+
+        # log clip ratio
+        is_clipped = (per_token_loss1 < per_token_loss2).float()
+        clip_ratio = (is_clipped * completion_mask).sum() / completion_mask.sum()
+        self._metrics["clip_ratio"].append(self.accelerator.gather_for_metrics(clip_ratio).mean().item())
+
+        return loss
+
+    def _generate_and_score_completions(self, model: PreTrainedModel, inputs: list[dict]) -> dict:
         device = self.accelerator.device
+        user_inputs = [x["user_input"] for x in inputs]
+        assistant_outputs = [x["assistant_output"] for x in inputs]
+        assert len(user_inputs) == len(assistant_outputs)
         prompt_inputs = self._process_input(inputs)
         prompt_inputs = super()._prepare_inputs(prompt_inputs)
 
         prompt_ids, prompt_mask = prompt_inputs["input_ids"], prompt_inputs["attention_mask"]
         # generate completions
         with unwrap_model_for_generation(model, self.accelerator) as unwrapped_model:
-            prompt_completion_ids = self._model_generate(unwrapped_model, prompt_inputs, generation_config=self.generation_config)
-        
+            prompt_completion_ids = unwrapped_model.generate(**prompt_inputs, generation_config=self.generation_config)
+
             prompt_length = prompt_ids.size(1)
             prompt_ids = prompt_completion_ids[:, :prompt_length]
             completion_ids = prompt_completion_ids[:, prompt_length:]
-        
+
         # mask everything after the first eos_token_id
         is_eos = completion_ids == self.processing_class.eos_token_id
         eos_idx = torch.full((is_eos.size(0),), is_eos.size(1), dtype=torch.long, device=device)
@@ -271,19 +334,196 @@ class BaseGRPOTrainer(Trainer):
         completion_mask = (sequence_indices <= eos_idx.unsqueeze(1)).int()
         # concatenate prompt_mask with completion_mask for logit computation
         attention_mask = torch.cat([prompt_mask, completion_mask], dim=1)  # (B, P+C)
-        return inputs
+
+        # compute logits
+        logit_inputs = {k: v for k, v in prompt_inputs.items()}
+        logit_inputs["input_ids"] = prompt_completion_ids
+        logit_inputs["attention_mask"] = attention_mask
+
+        with torch.inference_mode():
+            # when using num_iterations == 1, old_per_token_logps == per_token_logps, so we can skip its
+            # computation here, and use per_token_logps.detach() instead.
+            if self.num_iterations > 1:
+                old_per_token_logps = self._get_per_token_logps(model, logit_inputs)
+                old_per_token_logps = old_per_token_logps[:, prompt_length - 1 :]
+            else:
+                old_per_token_logps = None
+
+            if self.beta == 0.0:
+                ref_per_token_logps = None
+            elif self.ref_model is not None:
+                ref_per_token_logps = self._get_per_token_logps(self.ref_model, logit_inputs)
+                ref_per_token_logps = ref_per_token_logps[:, prompt_length - 1 :]
+            else:
+                with self.accelerator.unwrap_model(model).disable_adapter():
+                    ref_per_token_logps = self._get_per_token_logps(model, logit_inputs)
+                    ref_per_token_logps = ref_per_token_logps[:, prompt_length - 1 :]
+
+        # decode the generated completions
+        completions = self.processing_class.batch_decode(completion_ids, skip_special_tokens=True)
+
+        # compute rewards
+        rewards = torch.zeros(len(user_inputs), device=device)
+        rewards_per_function = torch.zeros(len(user_inputs), self.reward_function.num_functions, device=device)
+        for i, (user_input, assistant_output, completion) in enumerate(
+            zip(user_inputs, assistant_outputs, completions, strict=False)
+        ):
+            reward = self.reward_function(user_input, assistant_output, completion)
+            rewards[i] = torch.tensor(reward["all_reward"], dtype=torch.float32, device=device)
+            rewards_per_function[i] = torch.tensor(reward["per_function_reward"], dtype=torch.float32, device=device)
+        # gather the outputs
+        rewards = self.accelerator.gather(rewards)
+
+        # compute group-wise rewards
+        # each group consists of num_generations completions for the same prompt
+        mean_grouped_rewards = rewards.view(-1, self.num_generations).mean(dim=1)
+        std_grouped_rewards = rewards.view(-1, self.num_generations).std(dim=1)
+
+        # normalize the rewards to compute the advantages
+        mean_grouped_rewards = mean_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
+        std_grouped_rewards = std_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
+        advantages = (rewards - mean_grouped_rewards) / (std_grouped_rewards + 1e-4)
+
+        # Get only the local slice of advantages
+        process_slice = slice(
+            self.accelerator.process_index * len(user_inputs),
+            (self.accelerator.process_index + 1) * len(user_inputs),
+        )
+        advantages = advantages[process_slice]
+
+        # log the metrics
+        completion_length = self.accelerator.gather_for_metrics(completion_mask.sum(1)).float().mean().item()
+        self._metrics["completion_length"].append(completion_length)
+
+        rewards_per_function = self.accelerator.gather_for_metrics(rewards_per_function).mean(0)
+        for i, reward_name in enumerate(self.reward_function.reward_names):
+            self._metrics[reward_name].append(rewards_per_function[i].item())
+
+        self._metrics["reward"].append(self.accelerator.gather_for_metrics(rewards).mean().item())
+        self._metrics["reward_std"].append(self.accelerator.gather_for_metrics(std_grouped_rewards).mean().item())
+
+        result = {
+            "prompt_ids": prompt_ids,
+            "prompt_mask": prompt_mask,
+            "completion_ids": completion_ids,
+            "completion_mask": completion_mask,
+            "old_per_token_logps": old_per_token_logps,
+            "ref_per_token_logps": ref_per_token_logps,
+            "advantages": advantages,
+            "others": dict(),
+        }
+        for key in prompt_inputs.keys():
+            if key == "input_ids" or key == "attention_mask":
+                continue
+            result["others"][key] = prompt_inputs[key]
+        return result
 
     @abstractmethod
-    def _process_input(self, inputs: dict):
+    def _process_input(self, inputs: list[dict]) -> dict:
         """Process the input."""
         raise NotImplementedError
-    
-    @abstractmethod
-    def _model_generate(self, model: PreTrainedModel, inputs: dict, generation_config: GenerationConfig):
-        """Generate completions using the model."""
-        raise NotImplementedError
-    
-    @abstractmethod
-    def _model_forward(self, model: PreTrainedModel, inputs: dict):
-        """Forward pass using the model."""
-        raise NotImplementedError
+
+    def _get_per_token_logps(self, model: PreTrainedModel, logit_inputs: dict):
+        logits = model(**logit_inputs)
+        logits = logits[:, :-1, :]  # (B, L-1, V), exclude the last logit: it corresponds to the next token pred
+        input_ids = logit_inputs["input_ids"][
+            :, 1:
+        ]  # (B, L-1), exclude the first input ID since we don't have logits for it
+        # compute the log probabilities for the input tokens. Use a loop to reduce memory peak.
+        per_token_logps = []
+        for logits_row, input_ids_row in zip(logits, input_ids, strict=False):
+            log_probs = logits_row.log_softmax(dim=-1)
+            token_log_prob = torch.gather(log_probs, dim=1, index=input_ids_row.unsqueeze(1)).squeeze(1)
+            per_token_logps.append(token_log_prob)
+        return torch.stack(per_token_logps)
+
+    # copied
+    def create_model_card(
+        self,
+        model_name: str | None = None,
+        dataset_name: str | None = None,
+        tags: str | list[str] | None = None,
+    ):
+        """
+        Creates a draft of a model card using the information available to the `Trainer`.
+
+        Args:
+            model_name (`str` or `None`, *optional*, defaults to `None`):
+                Name of the model.
+            dataset_name (`str` or `None`, *optional*, defaults to `None`):
+                Name of the dataset used for training.
+            tags (`str`, `list[str]` or `None`, *optional*, defaults to `None`):
+                Tags to be associated with the model card.
+        """
+        if not self.is_world_process_zero():
+            return
+
+        if hasattr(self.model.config, "_name_or_path") and not os.path.isdir(self.model.config._name_or_path):
+            base_model = self.model.config._name_or_path
+        else:
+            base_model = None
+
+        tags = tags or []
+        if isinstance(tags, str):
+            tags = [tags]
+
+        if hasattr(self.model.config, "unsloth_version"):
+            tags.append("unsloth")
+
+        citation = textwrap.dedent(
+            """\
+            @article{zhihong2024deepseekmath,
+                title        = {{DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models}},
+                author       = {Zhihong Shao and Peiyi Wang and Qihao Zhu and Runxin Xu and Junxiao Song and Mingchuan Zhang and Y. K. Li and Y. Wu and Daya Guo},
+                year         = 2024,
+                eprint       = {arXiv:2402.03300},
+            """
+        )
+
+        model_card = generate_model_card(
+            base_model=base_model,
+            model_name=model_name,
+            hub_model_id=self.hub_model_id,
+            dataset_name=dataset_name,
+            tags=tags,
+            wandb_url=None,
+            comet_url=None,
+            trainer_name="GRPO",
+            trainer_citation=citation,
+            paper_title="DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models",
+            paper_id="2402.03300",
+        )
+
+        model_card.save(os.path.join(self.args.output_dir, "README.md"))
+
+    def log(self, logs: dict[str, float], start_time: float | None = None) -> None:
+        metrics = {key: sum(val) / len(val) for key, val in self._metrics.items()}  # average the metrics
+        logs = {**logs, **metrics}
+        if version.parse(transformers.__version__) >= version.parse("4.47.0.dev0"):
+            super().log(logs, start_time)
+        else:  # transformers<=4.46
+            super().log(logs)
+        self._metrics.clear()
+
+    def _get_train_sampler(self):
+        """Returns a sampler that ensures proper data sampling for GRPO training."""
+        effective_batch_size = (
+            self.args.per_device_train_batch_size
+            * self.accelerator.num_processes
+            * self.args.gradient_accumulation_steps
+        )
+        return RepeatRandomSampler(
+            data_source=self.train_dataset,
+            mini_repeat_count=self.num_generations,
+            batch_size=effective_batch_size // self.num_generations,
+            repeat_count=self.num_iterations,
+            seed=self.args.seed,
+        )
+
+    def _get_eval_sampler(self, eval_dataset):
+        """Returns a sampler for evaluation."""
+        return RepeatRandomSampler(
+            data_source=eval_dataset,
+            mini_repeat_count=self.num_generations,
+            seed=self.args.seed,
+        )

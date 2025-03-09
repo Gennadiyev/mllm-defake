@@ -10,11 +10,3 @@ class SwiftSFTTrainer(SwiftSft):
 
     def _hack_tokenizer(self):
         self.tokenizer.add_tokens(ADDED_TOKENS)
-
-
-def sft_main(args=None):
-    return SwiftSFTTrainer(args).main()
-
-
-if __name__ == "__main__":
-    sft_main()

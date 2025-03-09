@@ -6,11 +6,14 @@ class BaseReward(ABC):
 
     @abstractmethod
     def __init__(self):
-        """Initialize the reward functions."""
+        """Initialize the reward functions.
+
+        Important: there must be two attributes: `num_functions` and `reward_names`.
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def __call__(self, pred, gt) -> dict[str, float]:
+    def __call__(self, pred, gt) -> dict:
         """Compute the reward.
 
         Args:

@@ -3,6 +3,7 @@ import sys
 
 import yaml
 
+from mllm_defake.finetune.trainers.swift_sft_trainer import SwiftSFTTrainer
 from mllm_defake.finetune.utils import get_torchrun_args
 
 
@@ -10,7 +11,7 @@ def sft_train(config):
     # process config
     with open(config, "r") as f:
         config = yaml.safe_load(f)
-    cmd = ["-m", "mllm_defake.finetune.trainers.swift_sft_trainer"]
+    cmd = ["-m", "mllm_defake.finetune.sft"]
     for key, value in config.items():
         cmd.append(f"--{key}")
         cmd.append(str(value))
@@ -23,3 +24,11 @@ def sft_train(config):
     result = subprocess.run(cmd)
     if result.returncode != 0:
         sys.exit(result.returncode)
+
+
+def sft_main(args=None):
+    return SwiftSFTTrainer(args).main()
+
+
+if __name__ == "__main__":
+    sft_main()
