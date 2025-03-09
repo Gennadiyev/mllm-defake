@@ -649,8 +649,8 @@ def doc(experiment_name, summarize_to):
 def finetune(config, list_configs):
     """
     Finetune the model using the specified configuration.
-    
-    CONFIG: local file in yml format, or one of the pre-defined supported configurations.
+
+    CONFIG: local file in yml or yaml format, or one of the pre-defined supported configurations.
     """
     if list_configs:
         logger.info("Pre-defined supported finetuning configurations:")
@@ -666,14 +666,18 @@ def finetune(config, list_configs):
     train_mode = config.split("/")[-1].split("_")[0]
     if train_mode == "sft":
         from mllm_defake.finetune.sft import sft_train
+
         sft_train(config)
     elif train_mode == "grpo":
         from mllm_defake.finetune.grpo import grpo_train
+
         grpo_train(config)
     else:
-        logger.error(f"Invalid train mode: {train_mode}"
-                     "train model is defined by the first part of the config file name, e.g. sft_qwen2_5_vl_3b.yml. "
-                     "supported train modes: sft, grpo")
+        logger.error(
+            f"Invalid train mode: {train_mode}"
+            "train model is defined by the first part of the config file name, e.g. sft_qwen2_5_vl_3b.yml. "
+            "supported train modes: sft, grpo"
+        )
 
 
 @click.group()
