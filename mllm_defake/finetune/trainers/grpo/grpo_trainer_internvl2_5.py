@@ -9,11 +9,18 @@ from transformers import (
 )
 from trl.data_utils import apply_chat_template
 
-from .base_grpo_trainer import BaseGRPOTrainer
+from mllm_defake.finetune.trainers.grpo.base_grpo_trainer import BaseGRPOTrainer
 
 
 class GRPOTrainer_InternVL2_5(BaseGRPOTrainer):
     """The trainer for GRPO with InternVL2.5 model."""
+
+    SPECIAL_TOKNES = {
+        "ref_object_start": "<ref>",
+        "ref_object_end": "</ref>",
+        "box_start": "<box>",
+        "box_end": "</box>",
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

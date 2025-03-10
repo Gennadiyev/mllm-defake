@@ -29,6 +29,3 @@ def get_torchrun_args():
         f"--master_port={master_port}",
     ]
     return torchrun_args
-
-
-ADDED_TOKENS = ["<think>", "</think>", "<verdict>", "</verdict>", "<tag>", "</tag>"]

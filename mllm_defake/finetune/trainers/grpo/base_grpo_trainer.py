@@ -14,8 +14,8 @@ from transformers.integrations.deepspeed import is_deepspeed_zero3_enabled
 from trl.models import create_reference_model, prepare_deepspeed, unwrap_model_for_generation
 from trl.trainer.utils import generate_model_card
 
-from mllm_defake.finetune.trainers.grpo_config import GRPOConfig
-from mllm_defake.finetune.trainers.sampler import RepeatRandomSampler
+from mllm_defake.finetune.trainers.grpo.grpo_config import GRPOConfig
+from mllm_defake.finetune.trainers.grpo.sampler import RepeatRandomSampler
 
 
 class BaseGRPOTrainer(Trainer):

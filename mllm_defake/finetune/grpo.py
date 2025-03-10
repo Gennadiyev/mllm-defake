@@ -1,29 +1,95 @@
-from dataclasses import dataclass
+import glob
+import json
+import subprocess
+import sys
+from functools import partial
 
-from trl import ModelConfig, ScriptArguments, TrlParser
+import yaml
+from trl import TrlParser, get_peft_config
 
-from mllm_defake.finetune.trainers.grpo_config import GRPOConfig
-
-
-@dataclass
-class GRPOScriptArguments(ScriptArguments):
-    pass
-
-
-@dataclass
-class GRPOModelConfig(ModelConfig):
-    freeze_vision_modules: bool = False
+from mllm_defake.finetune.trainers.grpo import VLGRPOConfig, VLGRPOModelConfig, VLGRPOScriptArguments, get_jsonl_dataset
+from mllm_defake.finetune.utils import get_torchrun_args
 
 
 def grpo_train(config):
-    pass
+    # process config
+    with open(config, "r") as f:
+        config = yaml.safe_load(f)
+    cmd = ["-m", "mllm_defake.finetune.grpo"]
+    for key, value in config.items():
+        cmd.append(f"--{key}")
+        if isinstance(value, dict):
+            cmd.append(json.dumps(value))
+        else:
+            cmd.append(str(value))
+    # run
+    torchrun_args = get_torchrun_args()
+    if torchrun_args is None:
+        cmd = ["python", *cmd]
+    else:
+        cmd = ["torchrun", *torchrun_args, *cmd]
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
 
 
-def grpo_main(script_args, grpo_config, model_config):
-    pass
+def grpo_main(script_args, grpo_args, model_args):
+    # reward cls
+    if script_args.reward_version is None:
+        raise ValueError("reward_version is required")
+    if script_args.reward_version == "v0":
+        from mllm_defake.finetune.rewards import RewardV0
+
+        reward_cls = RewardV0
+    else:
+        raise ValueError(f"Unknown reward version: {script_args.reward_version}")
+    reward_config = json.loads(script_args.reward_config) if script_args.reward_config is not None else {}
+    # model and trainer
+    temp_model_name_or_path = model_args.model_name_or_path.lower()
+    if "qwen2.5-vl" in temp_model_name_or_path:
+        from mllm_defake.finetune.trainers.grpo import GRPOTrainer_Qwen2_5_VL
+
+        trainer_cls = partial(
+            GRPOTrainer_Qwen2_5_VL,
+            max_pixels=script_args.max_pixels,
+            min_pixels=script_args.min_pixels,
+        )
+    elif "internvl2_5" in temp_model_name_or_path:
+        from mllm_defake.finetune.trainers.grpo import GRPOTrainer_InternVL2_5
+
+        trainer_cls = GRPOTrainer_InternVL2_5
+    else:
+        raise ValueError(f"Unknown model: {model_args.model_name_or_path}")
+    if not hasattr(trainer_cls, "SPECIAL_TOKENS"):
+        raise ValueError(f"Missing SPECIAL_TOKENS in trainer: {trainer_cls}")
+    # dataset
+    dataset = get_jsonl_dataset(script_args.data_file, script_args.images_root, trainer_cls.SPECIAL_TOKNES)
+    splits = {"train": dataset}
+    if script_args.val_split_ratio > 0:
+        train_val_split = dataset.train_test_split(test_size=script_args.val_split_ratio)
+        splits["train"] = train_val_split["train"]
+        splits["test"] = train_val_split["test"]
+    # train
+    trainer = trainer_cls(
+        model=model_args.model_name_or_path,
+        reward_cls=reward_cls,
+        reward_config=reward_config,
+        args=grpo_args,
+        train_dataset=splits["train"],
+        test_dataset=splits.get("validation") if grpo_args.eval_strategy != "no" else None,
+        peft_config=get_peft_config(model_args),
+        freeze_vision_modules=model_args.freeze_vision_modules,
+    )
+    # resume
+    if list(glob.glob("checkpoint-*", root_dir=grpo_args.output_dir)):
+        trainer.train(resume_from_checkpoint=True)
+    else:
+        trainer.train()
+    # save
+    trainer.save_model(grpo_args.output_dir)
 
 
 if __name__ == "__main__":
-    parser = TrlParser((GRPOScriptArguments, GRPOConfig, GRPOModelConfig))
-    script_args, grpo_config, model_config = parser.parse_args_and_config()
-    grpo_main(script_args, grpo_config, model_config)
+    parser = TrlParser((VLGRPOScriptArguments, VLGRPOConfig, VLGRPOModelConfig))
+    script_args, grpo_args, model_args = parser.parse_args_and_config()
+    grpo_main(script_args, grpo_args, model_args)

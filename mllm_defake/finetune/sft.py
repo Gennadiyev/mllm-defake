@@ -3,7 +3,7 @@ import sys
 
 import yaml
 
-from mllm_defake.finetune.trainers.swift_sft_trainer import SwiftSFTTrainer
+from mllm_defake.finetune.trainers.sft import SwiftSFTTrainer
 from mllm_defake.finetune.utils import get_torchrun_args
 
 

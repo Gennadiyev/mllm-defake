@@ -1,6 +1,7 @@
 from swift.llm.train import SwiftSft
 
-from mllm_defake.finetune.utils import ADDED_TOKENS
+
+ADDED_TOKENS = ["<think>", "</think>", "<verdict>", "</verdict>", "<tag>", "</tag>"]
 
 
 class SwiftSFTTrainer(SwiftSft):
