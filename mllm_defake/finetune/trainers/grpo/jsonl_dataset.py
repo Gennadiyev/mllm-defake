@@ -1,20 +1,21 @@
 import json
 import os
 
+import imagesize
 from datasets import Dataset
 
 
-def get_jsonl_dataset(data_file: str, images_root: str, special_tokens: dict) -> Dataset:
+def get_jsonl_dataset(data_file: str, images_root: str, special_tokens: dict, is_norm: bool) -> Dataset:
     data = []
     with open(data_file) as f:
         for line in f:
             data.append(json.loads(line))
     dataset = Dataset.from_list(data)
-    dataset = dataset.map(lambda x: _make_item(x, images_root, special_tokens))
+    dataset = dataset.map(lambda x: _make_item(x, images_root, special_tokens, is_norm))
     return dataset
 
 
-def _make_item(item: dict, images_root: str, special_tokens: dict) -> dict:
+def _make_item(item: dict, images_root: str, special_tokens: dict, is_norm: bool) -> dict:
     images = item["images"]
     if len(images) > 1:
         raise ValueError("Only one image is supported")
@@ -33,6 +34,8 @@ def _make_item(item: dict, images_root: str, special_tokens: dict) -> dict:
     if objects is not None:
         refs = objects["ref"]
         bboxes = objects["bbox"]
+        if is_norm:
+            bboxes = _norm_bbox(image, bboxes)
         for ref, bbox in zip(refs, bboxes, strict=False):
             ref_object = f"{special_tokens['ref_object_start']}{ref}{special_tokens['ref_object_end']}"
             bbox_object = f"{special_tokens['box_start']}{str(bbox)}{special_tokens['box_end']}"
@@ -51,3 +54,16 @@ def _make_item(item: dict, images_root: str, special_tokens: dict) -> dict:
         "conversation": conversation,
     }
     return item
+
+
+def _norm_bbox(image_path: str, bboxes: list) -> list:
+    width, height = imagesize.get(image_path)
+    normed_bboxes = []
+    for bbox in bboxes:
+        x1, y1, x2, y2 = bbox
+        x1 /= width * 1000
+        y1 /= height * 1000
+        x2 /= width * 1000
+        y2 /= height * 1000
+        normed_bboxes.append([x1, y1, x2, y2])
+    return normed_bboxes

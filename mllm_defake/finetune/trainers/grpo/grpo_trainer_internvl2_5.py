@@ -72,6 +72,7 @@ class GRPOTrainer_InternVL2_5(BaseGRPOTrainer):
             add_special_tokens=False,
         )
         prompt_inputs["pixel_values"] = pixel_values
+        return prompt_inputs
 
     def _build_transforms(self, input_size: int):
         MEAN, STD = self.IMAGENET_MEAN, self.IMAGENET_STD

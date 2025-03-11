@@ -2,8 +2,8 @@ import subprocess
 import sys
 
 import yaml
+from swift.llm.train import SwiftSft
 
-from mllm_defake.finetune.trainers.sft import SwiftSFTTrainer
 from mllm_defake.finetune.utils import get_torchrun_args
 
 
@@ -15,6 +15,8 @@ def sft_train(config):
     for key, value in config.items():
         cmd.append(f"--{key}")
         cmd.append(str(value))
+    # hardcode to disable versioning
+    cmd.append("--no_add_version")
     # run
     torchrun_args = get_torchrun_args()
     if torchrun_args is None:
@@ -27,7 +29,7 @@ def sft_train(config):
 
 
 def sft_main(args=None):
-    return SwiftSFTTrainer(args).main()
+    return SwiftSft(args).main()
 
 
 if __name__ == "__main__":

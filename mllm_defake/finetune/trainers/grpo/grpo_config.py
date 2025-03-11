@@ -9,10 +9,8 @@ class VLGRPOConfig(GRPOConfig):
     Args for callbacks, benchmarks and system prompt.
     """
 
-    benchmarks: list[str] = field(
-        default_factory=lambda: [], metadata={"help": "The benchmarks to run after training."}
-    )
-    callbacks: list[str] = field(default_factory=lambda: [], metadata={"help": "The callbacks to run during training."})
+    benchmarks: list[str] = field(default_factory=list, metadata={"help": "The benchmarks to run after training."})
+    callbacks: list[str] = field(default_factory=list, metadata={"help": "The callbacks to run during training."})
     system_prompt: str | None = field(
         default=None, metadata={"help": "The optional system prompt to use for benchmarking."}
     )
@@ -34,7 +32,7 @@ class VLGRPOScriptArguments(ScriptArguments):
         metadata={"help": "The path to the data file in `jsonl` format."},
     )
     images_root: str = field(
-        default='',
+        default="",
         metadata={"help": "The root directory of the images"},
     )
     arrow_cache_dir: str = field(

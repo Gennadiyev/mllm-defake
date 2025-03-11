@@ -2,19 +2,19 @@ import os
 import textwrap
 from abc import abstractmethod
 from collections import defaultdict
-from packaging import version
 
 import torch
 import transformers
 from accelerate.utils import is_peft_model, set_seed
 from datasets import Dataset, IterableDataset
+from packaging import version
 from peft import PeftConfig, get_peft_model
 from transformers import AutoProcessor, AutoTokenizer, GenerationConfig, PreTrainedModel, Trainer, TrainerCallback
 from transformers.integrations.deepspeed import is_deepspeed_zero3_enabled
 from trl.models import create_reference_model, prepare_deepspeed, unwrap_model_for_generation
 from trl.trainer.utils import generate_model_card
 
-from mllm_defake.finetune.trainers.grpo.grpo_config import GRPOConfig
+from mllm_defake.finetune.trainers.grpo.grpo_config import VLGRPOConfig
 from mllm_defake.finetune.trainers.grpo.sampler import RepeatRandomSampler
 
 
@@ -25,7 +25,7 @@ class BaseGRPOTrainer(Trainer):
         model (str): The model name or path.
         reward_cls (type): The reward class.
         reward_config (dict): The reward configuration for `RewardVx` initialization.
-        args (GRPOConfig): The GRPO configuration. Defaults to None.
+        args (VLGRPOConfig): The GRPO configuration. Defaults to None.
         train_dataset (Dataset | IterableDataset): The training dataset. Defaults to None.
         test_dataset (Dataset | IterableDataset, optional): The test dataset. Defaults to None.
         callbacks (list[TrainerCallback], optional): The list of callbacks. Defaults to None.
@@ -43,7 +43,7 @@ class BaseGRPOTrainer(Trainer):
         model: str,
         reward_cls: type,
         reward_config: dict,
-        args: GRPOConfig = None,
+        args: VLGRPOConfig = None,
         train_dataset: Dataset | IterableDataset = None,
         test_dataset: Dataset | IterableDataset | None = None,
         callbacks: list[TrainerCallback] | None = None,
@@ -54,7 +54,7 @@ class BaseGRPOTrainer(Trainer):
     ):
         if args is None:
             model_name = model.split("/")[-1]
-            args = GRPOConfig(f"{model_name}-GRPO")
+            args = VLGRPOConfig(f"{model_name}-GRPO")
 
         model_name_or_path = model
         # trained model
@@ -147,7 +147,7 @@ class BaseGRPOTrainer(Trainer):
             else:
                 self.ref_model = self.accelerator.prepare_model(self.ref_model, evaluation_mode=True)
 
-    def _build_model_init_kwargs(self, args: GRPOConfig, torch_dtype: str) -> dict:
+    def _build_model_init_kwargs(self, args: VLGRPOConfig, torch_dtype: str) -> dict:
         model_init_kwargs = args.model_init_kwargs or {}
         if model_init_kwargs.get("torch_dtype") is None:
             model_init_kwargs["torch_dtype"] = torch_dtype
@@ -176,7 +176,7 @@ class BaseGRPOTrainer(Trainer):
     def _post_process_model(
         self,
         model: PreTrainedModel,
-        args: GRPOConfig,
+        args: VLGRPOConfig,
         peft_config: PeftConfig,
         freeze_vision: bool,
         vision_modules_keywords: list[str],
@@ -210,7 +210,7 @@ class BaseGRPOTrainer(Trainer):
         if args.gradient_checkpointing:
             model = self._enable_gradient_checkpointing(model, args)
 
-    def _enable_gradient_checkpointing(self, model: PreTrainedModel, args: GRPOConfig) -> PreTrainedModel:
+    def _enable_gradient_checkpointing(self, model: PreTrainedModel, args: VLGRPOConfig) -> PreTrainedModel:
         """Enable gradient checkpointing for the model."""
         # ensure use_cache is disabled
         model.config.use_cache = False

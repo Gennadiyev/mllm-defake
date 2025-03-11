@@ -680,6 +680,52 @@ def finetune(config, list_configs):
         )
 
 
+@click.command()
+@click.argument("lora_path", type=str, default="")
+@click.argument("model_path", type=str, default="")
+@click.option(
+    "-o",
+    "--output_path",
+    help="The path to save the merged model.",
+    default="",
+)
+def merge_lora(lora_path, model_path, add_tokens, output_path):
+    """
+    Merge the LoRA model with the base model.
+    """
+    import torch
+    from peft import PeftModel
+
+    # process output path
+    if not output_path:
+        output_path = f"{lora_path}-merged"
+    # infer model_type
+    if "qwen2.5-vl" in model_path.lower():
+        from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+
+        model_class = Qwen2_5_VLForConditionalGeneration
+        processor = AutoProcessor.from_pretrained(model_path)
+    elif "internvl2_5" in model_path.lower():
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        model_class = AutoModelForCausalLM
+        processor = AutoTokenizer.from_pretrained(model_path)
+    else:
+        raise ValueError(f"Invalid model path: {model_path}")
+    # load model and tokenizer
+    model = model_class.from_pretrained(
+        model_path,
+        torch_dtype=torch.float16,
+        trust_remote_code=True,
+    )
+    # load lora
+    model = PeftModel.from_pretrained(model, lora_path, torch_dtype=torch.float16)
+    model = model.merge_and_unload()
+    # save model
+    model.save_pretrained(output_path)
+    processor.save_pretrained(output_path)
+
+
 @click.group()
 def main_cli():
     pass
@@ -689,6 +735,7 @@ main_cli.add_command(classify)
 main_cli.add_command(infer)
 main_cli.add_command(doc)
 main_cli.add_command(finetune)
+main_cli.add_command(merge_lora)
 
 
 if __name__ == "__main__":

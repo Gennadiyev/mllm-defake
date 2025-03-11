@@ -6,7 +6,7 @@ class BaseReward(ABC):
 
     def __init__(self):
         """Initialize the reward functions.
-        
+
         super().__init__() should be called after the initialization of the subclass.
         Important: there must be two attributes: `num_functions` and `reward_names`.
         """
@@ -14,7 +14,7 @@ class BaseReward(ABC):
             raise AttributeError("The number of functions must be specified.")
         if not hasattr(self, "reward_names"):
             raise AttributeError("The reward names must be specified.")
-        
+
     @abstractmethod
     def __call__(self, user_input: str, assistant_output: str, completion: str) -> dict:
         """Compute the reward.
