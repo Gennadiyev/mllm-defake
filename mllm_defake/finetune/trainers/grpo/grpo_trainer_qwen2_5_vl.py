@@ -8,13 +8,6 @@ from mllm_defake.finetune.trainers.grpo.base_grpo_trainer import BaseGRPOTrainer
 class GRPOTrainer_Qwen2_5_VL(BaseGRPOTrainer):
     """The trainer for GRPO with Qwen2.5-VL model."""
 
-    SPECIAL_TOKNES = {
-        "ref_object_start": "<|object_ref_start|>",
-        "ref_object_end": "<|object_ref_end|>",
-        "box_start": "<|box_start|>",
-        "box_end": "<|box_end|>",
-    }
-
     def __init__(self, *args, **kwargs):
         self.min_pixels = kwargs.pop("min_pixels", 3136)
         self.max_pixels = kwargs.pop("max_pixels", 12845056)

@@ -8,7 +8,7 @@ import yaml
 from trl import TrlParser, get_peft_config
 
 from mllm_defake.finetune.trainers.grpo import VLGRPOConfig, VLGRPOModelConfig, VLGRPOScriptArguments, get_jsonl_dataset
-from mllm_defake.finetune.utils import get_torchrun_args
+from mllm_defake.finetune.utils import get_torchrun_args, SPECIAL_TOKNES
 
 
 def grpo_train(config):
@@ -55,17 +55,17 @@ def grpo_main(script_args, grpo_args, model_args):
             min_pixels=script_args.min_pixels,
         )
         is_norm = False
+        special_tokens = SPECIAL_TOKNES["qwen2.5-vl"]
     elif "internvl2_5" in temp_model_name_or_path:
         from mllm_defake.finetune.trainers.grpo import GRPOTrainer_InternVL2_5
 
         trainer_cls = GRPOTrainer_InternVL2_5
         is_norm = True
+        special_tokens = SPECIAL_TOKNES["internvl2_5"]
     else:
         raise ValueError(f"Unknown model: {model_args.model_name_or_path}")
-    if not hasattr(trainer_cls, "SPECIAL_TOKENS"):
-        raise ValueError(f"Missing SPECIAL_TOKENS in trainer: {trainer_cls}")
     # dataset
-    dataset = get_jsonl_dataset(script_args.data_file, script_args.images_root, trainer_cls.SPECIAL_TOKNES, is_norm)
+    dataset = get_jsonl_dataset(script_args.data_file, script_args.images_root, special_tokens, is_norm)
     splits = {"train": dataset}
     if script_args.val_split_ratio > 0:
         train_val_split = dataset.train_test_split(test_size=script_args.val_split_ratio)

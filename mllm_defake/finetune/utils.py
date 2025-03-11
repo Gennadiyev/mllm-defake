@@ -2,6 +2,22 @@ import os
 import random
 
 
+SPECIAL_TOKNES = {
+    "internvl2_5": {
+        "ref_object_start": "<ref>",
+        "ref_object_end": "</ref>",
+        "box_start": "<box>",
+        "box_end": "</box>",
+    },
+    "qwen2_5_vl": {
+        "ref_object_start": "<|object_ref_start|>",
+        "ref_object_end": "<|object_ref_end|>",
+        "box_start": "<|box_start|>",
+        "box_end": "<|box_end|>",
+    }
+}
+
+
 def use_torchrun():
     nproc_per_node = os.getenv("NPROC_PER_NODE")
     if nproc_per_node is None:
