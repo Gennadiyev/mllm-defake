@@ -699,12 +699,13 @@ def merge_lora(lora_path, output_path):
     if output_path == "":
         output_path = f"{lora_path}-merged"
 
-    merge_lora(ExportArguments(
+    merge_lora(
+        ExportArguments(
             adapters=[lora_path],
             merge_lora=True,
             output_dir=output_path,
         ),
-        device_map='cuda:0'
+        device_map="cpu",
     )
 
 

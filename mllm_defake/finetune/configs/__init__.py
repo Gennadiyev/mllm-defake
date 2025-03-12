@@ -11,7 +11,8 @@ for config in configs:
         SUPPORTED_CONFIGS[config_name] = os.path.join(this_dir, config)
 
 
-settings = os.path.join(this_dir, "deepspeed")
+settings_dir = os.path.join(this_dir, "deepspeed")
+settings = os.listdir(settings_dir)
 DEEPSPEED_SETTINGS = dict()
 
 for setting in settings:

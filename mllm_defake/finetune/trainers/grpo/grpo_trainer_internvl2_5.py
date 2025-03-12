@@ -25,7 +25,7 @@ class GRPOTrainer_InternVL2_5(BaseGRPOTrainer):
 
     def _build_model(
         self, model_name_or_path: str, model_init_kwargs: dict
-    ) -> tuple[PreTrainedModel, list[str], AutoTokenizer, int]:
+    ) -> tuple[PreTrainedModel, list[str], AutoTokenizer, int, type]:
         """Build the model, specify the vision modules, and return the tokenizer and pad token id."""
         # model
         model = AutoModel.from_pretrained(model_name_or_path, trust_model=True, **model_init_kwargs)
@@ -34,11 +34,10 @@ class GRPOTrainer_InternVL2_5(BaseGRPOTrainer):
         # tokenizer
         tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_model=True)
         pad_token_id = tokenizer.pad_token_id
-        return model, vision_modules, tokenizer, pad_token_id
+        return model, vision_modules, tokenizer, pad_token_id, AutoModel
 
     def _process_input(self, inputs: list[dict]) -> dict:
-        conversations = [x["conversation"] for x in inputs]
-        conversation_contents = [apply_chat_template(x, self.processing_class) for x in conversations]
+        conversation_contents = [apply_chat_template(x, self.processing_class)["prompt"] for x in inputs]
         # handle both pre-loaded images and image paths
         images = []
         for x in inputs:

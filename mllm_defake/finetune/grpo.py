@@ -7,6 +7,7 @@ from functools import partial
 import yaml
 from trl import TrlParser, get_peft_config
 
+from mllm_defake.finetune.configs import DEEPSPEED_SETTINGS
 from mllm_defake.finetune.trainers.grpo import VLGRPOConfig, VLGRPOModelConfig, VLGRPOScriptArguments, get_jsonl_dataset
 from mllm_defake.finetune.utils import get_torchrun_args, SPECIAL_TOKNES
 
@@ -17,6 +18,15 @@ def grpo_train(config):
         config = yaml.safe_load(f)
     cmd = ["-m", "mllm_defake.finetune.grpo"]
     for key, value in config.items():
+        # special keys
+        if key == "torch_dtype":
+            if value == "bfloat16":
+                cmd.append("--bf16")
+            elif value == "float16":
+                cmd.append("--fp16")
+        if key == "deepspeed":
+            value = DEEPSPEED_SETTINGS[value]
+        # append
         cmd.append(f"--{key}")
         if isinstance(value, dict):
             cmd.append(json.dumps(value))
@@ -65,7 +75,7 @@ def grpo_main(script_args, grpo_args, model_args):
     else:
         raise ValueError(f"Unknown model: {model_args.model_name_or_path}")
     # dataset
-    dataset = get_jsonl_dataset(script_args.data_file, script_args.images_root, special_tokens, is_norm)
+    dataset = get_jsonl_dataset(script_args.dataset_name, script_args.images_root, special_tokens, is_norm)
     splits = {"train": dataset}
     if script_args.val_split_ratio > 0:
         train_val_split = dataset.train_test_split(test_size=script_args.val_split_ratio)
@@ -80,7 +90,7 @@ def grpo_main(script_args, grpo_args, model_args):
         train_dataset=splits["train"],
         test_dataset=splits.get("validation") if grpo_args.eval_strategy != "no" else None,
         peft_config=get_peft_config(model_args),
-        freeze_vision_modules=model_args.freeze_vision_modules,
+        freeze_vision=model_args.freeze_vision,
     )
     # resume
     if list(glob.glob("checkpoint-*", root_dir=grpo_args.output_dir)):

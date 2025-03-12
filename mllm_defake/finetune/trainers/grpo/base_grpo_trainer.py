@@ -59,10 +59,11 @@ class BaseGRPOTrainer(Trainer):
         model_name_or_path = model
         # trained model
         model_init_kwargs = self._build_model_init_kwargs(args, torch_dtype)
-        model, vision_modules_keywords, processor, pad_token_id = self._build_model(
+        model, vision_modules_keywords, processor, pad_token_id, model_class = self._build_model(
             model_name_or_path, model_init_kwargs
         )
-        model = self._post_process_model(model, peft_config, freeze_vision, vision_modules_keywords)
+        self.model_class = model_class
+        model = self._post_process_model(model, args, peft_config, freeze_vision, vision_modules_keywords)
         # ref model
         self.ref_model = self._build_ref_model(model, model_name_or_path, model_init_kwargs, peft_config)
         # reward
@@ -89,14 +90,6 @@ class BaseGRPOTrainer(Trainer):
         self._step = 0
         # buffer the batch to reuse generated outputs across multiple updates
         self._buffered_inputs = [None] * args.gradient_accumulation_steps
-        # copied
-        # The trainer estimates the number of FLOPs (floating-point operations) using the number of elements in the
-        # input tensor associated with the key "input_ids". However, in GRPO, the sampled data does not include the
-        # "input_ids" key. Instead, the available keys is "prompt". As a result, the trainer issues the warning:
-        # "Could not estimate the number of tokens of the input, floating-point operations will not be computed." To
-        # suppress this warning, we set the "estimate_tokens" key in the model's "warnings_issued" dictionary to True.
-        # This acts as a flag to indicate that the warning has already been issued.
-        model.warnings_issued["estimate_tokens"] = True
         # initialize the metrics
         self._metrics = defaultdict(list)
         # super
@@ -169,8 +162,8 @@ class BaseGRPOTrainer(Trainer):
     @abstractmethod
     def _build_model(
         self, model_name_or_path: str, model_init_kwargs: dict
-    ) -> tuple[PreTrainedModel, list[str], AutoProcessor | AutoTokenizer, int]:
-        """Build the model, specify the vision modules, and return the processor or tokenizer and pad token id."""
+    ) -> tuple[PreTrainedModel, list[str], AutoProcessor | AutoTokenizer, int, type]:
+        """Build the model, specify the vision modules, and return the processor or tokenizer, pad token id and the class for building model"""
         raise NotImplementedError
 
     def _post_process_model(
@@ -209,6 +202,7 @@ class BaseGRPOTrainer(Trainer):
         # gradient checkpointing
         if args.gradient_checkpointing:
             model = self._enable_gradient_checkpointing(model, args)
+        return model
 
     def _enable_gradient_checkpointing(self, model: PreTrainedModel, args: VLGRPOConfig) -> PreTrainedModel:
         """Enable gradient checkpointing for the model."""
@@ -235,8 +229,8 @@ class BaseGRPOTrainer(Trainer):
     ) -> PreTrainedModel:
         """Build the reference model."""
         if is_deepspeed_zero3_enabled():
-            model_type = type(model)
-            ref_model = model_type.from_pretrained(model_name_or_path, **model_init_kwargs)
+            model_init_kwargs["trust_remote_code"] = True
+            ref_model = self.model_class.from_pretrained(model_name_or_path, **model_init_kwargs)
         elif peft_config is None:
             # if PEFT configuration is not provided, create a reference model based on the initial model
             ref_model = create_reference_model(model)
@@ -267,9 +261,8 @@ class BaseGRPOTrainer(Trainer):
         attention_mask = torch.cat([prompt_mask, completion_mask], dim=1)
 
         # get the current policy's log probabilities
-        per_token_logps = self._get_per_token_logps(
-            model, others.update({"input_ids": input_ids, "attention_mask": attention_mask})
-        )
+        others.update({"input_ids": input_ids, "attention_mask": attention_mask})
+        per_token_logps = self._get_per_token_logps(model, others)
         # get rid of the prompt (-1 because of the shift done in get_per_token_logps)
         per_token_logps = per_token_logps[:, prompt_ids.size(1) - 1 :]
 
@@ -424,7 +417,7 @@ class BaseGRPOTrainer(Trainer):
         raise NotImplementedError
 
     def _get_per_token_logps(self, model: PreTrainedModel, logit_inputs: dict):
-        logits = model(**logit_inputs)
+        logits = model(**logit_inputs).logits
         logits = logits[:, :-1, :]  # (B, L-1, V), exclude the last logit: it corresponds to the next token pred
         input_ids = logit_inputs["input_ids"][
             :, 1:

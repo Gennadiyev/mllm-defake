@@ -15,7 +15,7 @@ class GRPOTrainer_Qwen2_5_VL(BaseGRPOTrainer):
 
     def _build_model(
         self, model_name_or_path: str, model_init_kwargs: dict
-    ) -> tuple[PreTrainedModel, list[str], AutoProcessor, int]:
+    ) -> tuple[PreTrainedModel, list[str], AutoProcessor, int, type]:
         """Build the model, specify the vision modules, and return the processor and pad token id."""
         # model
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_name_or_path, **model_init_kwargs)
@@ -29,11 +29,20 @@ class GRPOTrainer_Qwen2_5_VL(BaseGRPOTrainer):
         # min/max pixels
         processor.image_processor.min_pixels = self.min_pixels
         processor.image_processor.max_pixels = self.max_pixels
-        return model, vision_modules, processor, pad_token_id
+        return model, vision_modules, processor, pad_token_id, Qwen2_5_VLForConditionalGeneration
 
     def _process_input(self, inputs: list[dict]) -> dict:
-        conversations = [x["conversation"] for x in inputs]
-        conversation_contents = [apply_chat_template(x, self.processing_class) for x in conversations]
+        # add image to inputs
+        new_inputs = []
+        for x in inputs:
+            prompt = x["prompt"]
+            last_content = prompt[-1]["content"]
+            prompt[-1]["content"] = [
+                {'type': 'image', 'text': None},
+                {'type': 'text', 'text': last_content}
+            ]
+            new_inputs.append({"prompt": prompt})
+        conversation_contents = [apply_chat_template(x, self.processing_class)["prompt"] for x in new_inputs]
         # replace <image>
         conversation_contents = [x.replace("<image>", "") for x in conversation_contents]
         # handle both pre-loaded images and image paths

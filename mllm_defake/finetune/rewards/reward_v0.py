@@ -9,7 +9,7 @@ class RewardV0(BaseReward):
         super().__init__()
 
     def __call__(self, user_input: str, assistant_output: str, completion: str) -> dict:
-        pattern = r"<think>.*?</think><verdict>.*?</verdict>"
+        pattern = r"<think>.*?</think>.*?<verdict>.*?</verdict>"
         format_reward = format_reward_function(pattern, completion)
         verdict_reward = verdict_reward_function(assistant_output, completion)
         all_reward = format_reward + verdict_reward

@@ -9,9 +9,10 @@ def get_jsonl_dataset(data_file: str, images_root: str, special_tokens: dict, is
     data = []
     with open(data_file) as f:
         for line in f:
-            data.append(json.loads(line))
+            this_data = json.loads(line)
+            this_data = _make_item(this_data, images_root, special_tokens, is_norm)
+            data.append(this_data)
     dataset = Dataset.from_list(data)
-    dataset = dataset.map(lambda x: _make_item(x, images_root, special_tokens, is_norm))
     return dataset
 
 
@@ -46,12 +47,11 @@ def _make_item(item: dict, images_root: str, special_tokens: dict, is_norm: bool
     if has_system:
         conversation.append({"role": "system", "content": messages[0]["content"]})
     conversation.append({"role": "user", "content": user_input})
-    conversation.append({"role": "assistant", "content": assistant_output})
     item = {
         "image_path": image,
-        "user_input": user_input,
+        "user_input": user_input.replace("<image>", ""),
         "assistant_output": assistant_output,
-        "conversation": conversation,
+        "prompt": conversation,
     }
     return item
 
