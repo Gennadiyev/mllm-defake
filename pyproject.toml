@@ -13,7 +13,7 @@ dependencies = [
     "click>=8.0.1",
     "orjson",
     "pandas>=2",
-    "numpy<2",
+    "numpy<3",
     "loguru",
     "tqdm",
     "openai",
