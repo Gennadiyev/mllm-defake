@@ -28,7 +28,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "isort", "pytest-cov"]
-finetune = ["ms-swift==3.2.0.post2", "qwen_vl_utils>=0.0.6", "timm", "deepspeed==0.15.4", "imagesize"]
+finetune = ["ms-swift==3.2.1", "qwen_vl_utils>=0.0.6", "timm", "deepspeed==0.15.4", "imagesize"]
 
 [project.scripts]
 mllmdf = "mllm_defake.cli:main_cli"
