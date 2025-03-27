@@ -1,9 +1,13 @@
+import importlib
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Literal
 
 import cv2
+from PIL import Image
 import numpy as np
 import pandas as pd
+import torch
 from sklearn.metrics import accuracy_score
 from tqdm import tqdm
 
@@ -133,3 +137,103 @@ class FreqClassifier(BasicClassifier):
     def classify(self, sample: Path, label: int | bool) -> int:
         high_freq_content = self.high_freq_content(sample)
         return 1 if high_freq_content > 8.5 else 0
+
+
+class ComForClassifier(BasicClassifier):
+    def __init__(
+        self,
+        real_samples: list[Path],
+        fake_samples: list[Path],
+        community_forensics_checkpoint_path: Path,
+        input_size: Literal["224", "384"] = "384",
+        device: str | torch.device = "cuda:0",
+    ) -> None:
+        """
+        This classifier is a wrapper for the Community-Forensics project (https://jespark.net/projects/2024/community_forensics/), which trains a relatively lightweight ViT model to classify images as real or fake with high accuracy and good OOD performance.
+
+        To use this classifier, follow these steps:
+
+        1. Follow the instructions in the Community-Forensics repository (https://github.com/JeongsooP/Community-Forensics) to download the checkpoint, and specify the corresponding path in `community_forensics_checkpoint_path` parameter.
+
+        2. Specify the `input_size` parameter to either "224" or "384" depending on the checkpoint you downloaded. Note that the community_forensics_checkpoint_path and timm_vit_checkpoint_path should be in the same resolution.
+        """
+        self.check_dependencies()
+        import torch.nn as nn
+        import timm
+        from PIL import Image
+        from torchvision.transforms import Resize, CenterCrop, ToTensor, Normalize, ConvertImageDtype, Compose
+
+        super().__init__(real_samples, fake_samples)
+
+        class _ComForModel(nn.Module):
+            def __init__(self, input_size: int, device: str | torch.device = "cuda:0"):
+                super().__init__()
+                self.input_size = input_size
+                self.device = device  # Specify device to move input tensor to the correct device before forward pass
+                if input_size == 224:
+                    self.vit = timm.create_model(
+                        "vit_small_patch16_224.augreg_in21k_ft_in1k",
+                        pretrained=False
+                    )
+                elif input_size == 384:
+                    self.vit = timm.create_model(
+                        "vit_small_patch16_384.augreg_in21k_ft_in1k",
+                        pretrained=False
+                    )
+                self.vit.head = nn.Linear(
+                    in_features=384, out_features=1, bias=True, device=device, dtype=torch.float32
+                )
+
+            def preprocess_input(self, x: Image.Image):
+                norm_mean = [0.48145466, 0.4578275, 0.40821073]
+                norm_std = [0.26862954, 0.26130258, 0.27577711]
+                augment_list = []
+                resize_size = 440
+                crop_size = 384
+                if self.input_size == 224:
+                    resize_size = 256
+                    crop_size = 224
+                augment_list.extend(
+                    [
+                        Resize(resize_size),
+                        CenterCrop(crop_size),
+                        ToTensor(),
+                        Normalize(mean=norm_mean, std=norm_std),
+                        ConvertImageDtype(torch.float32),
+                    ]
+                )
+                preprocess = Compose(augment_list)
+                x = preprocess(x)
+                x = x.unsqueeze(0)
+                return x
+
+            def forward(self, x):
+                x = self.preprocess_input(x).to(self.device)
+                x = self.vit(x)
+                x = torch.nn.functional.sigmoid(x)
+                return x
+
+        if input_size == "224":
+            self.model = _ComForModel(224, device=device)
+        elif input_size == "384":
+            self.model = _ComForModel(384, device=device)
+        else:
+            raise ValueError(f"Unsupported input size: {input_size}")
+
+        comfor_checkpoint = torch.load(community_forensics_checkpoint_path, map_location=device)
+        self.model.load_state_dict(comfor_checkpoint["model"], strict=True)
+        self.model.to(device)
+        self.model.eval()
+
+    def check_dependencies(self) -> None:
+        if any(importlib.util.find_spec(module) is None for module in ["torch", "torchvision", "timm"]):
+            raise ImportError("Missing dependencies, please run 'pip install -e .[comfor]'")
+
+    def com_for(self, sample: Path) -> float:
+        img = Image.open(sample).convert("RGB")
+        fake_prob = self.model(img).item()
+        return 1 - fake_prob
+
+    def classify(self, sample: Path, label: int | bool) -> int:
+        com_for_value = self.com_for(sample)
+        return 1 if com_for_value > 0.5 else 0

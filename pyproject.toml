@@ -19,16 +19,17 @@ dependencies = [
     "openai",
     "requests",
     "scikit-learn>=0.21.0",
-    "Pillow",
+    "pillow",
     "tabulate",
     "opencv-python",
     "filetype",
-    "torch>=2.0.0",
+    "torch>=2.0.0"  # to inherit Dataset class and used for inference
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "isort", "pytest-cov"]
 finetune = ["ms-swift==3.2.1", "qwen_vl_utils>=0.0.6", "timm", "deepspeed==0.15.4", "imagesize"]
+comfor = ["timm>=0.9.12", "torchvision>=0.17.1"]
 
 [project.scripts]
 mllmdf = "mllm_defake.cli:main_cli"
