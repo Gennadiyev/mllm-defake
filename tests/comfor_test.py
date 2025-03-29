@@ -15,14 +15,12 @@ def test_on_demo_images():
     real_samples = Path("demo/real").rglob("*")
     fake_samples = Path("demo/fake").rglob("*")
     community_forensics_checkpoint_path = Path("local/comfor/model_v11_ViT_224_base_ckpt.pt")
-    timm_vit_checkpoint_path = Path("local/vit224")
-    model_type = "224"
+    input_size = "224"
     classifier = ComForClassifier(
         community_forensics_checkpoint_path,
         real_samples,
         fake_samples,
-        timm_vit_checkpoint_path=timm_vit_checkpoint_path,
-        model_type=model_type,
+        input_size=input_size,
         device=device,
     )
     classifier.evaluate("local/comfor.csv")
