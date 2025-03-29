@@ -23,7 +23,7 @@ class BasicClassifier(ABC):
 
     @abstractmethod
     def classify(self, sample: Path, label: int | bool) -> int:
-        return 0  # For fake
+        raise NotImplementedError("Subclasses must implement the classify method.")
 
     def _update_metrics(self, y_true, y_pred, pbar):
         """Helper method to update progress bar with current metrics"""
@@ -157,15 +157,9 @@ class ComForClassifier(BasicClassifier):
                 self.input_size = input_size
                 self.device = device  # Specify device to move input tensor to the correct device before forward pass
                 if input_size == 224:
-                    self.vit = timm.create_model(
-                        "vit_small_patch16_224.augreg_in21k_ft_in1k",
-                        pretrained=False
-                    )
+                    self.vit = timm.create_model("vit_small_patch16_224.augreg_in21k_ft_in1k", pretrained=False)
                 elif input_size == 384:
-                    self.vit = timm.create_model(
-                        "vit_small_patch16_384.augreg_in21k_ft_in1k",
-                        pretrained=False
-                    )
+                    self.vit = timm.create_model("vit_small_patch16_384.augreg_in21k_ft_in1k", pretrained=False)
                 self.vit.head = nn.Linear(
                     in_features=384, out_features=1, bias=True, device=device, dtype=torch.float32
                 )

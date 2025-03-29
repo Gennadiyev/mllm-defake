@@ -22,6 +22,7 @@ SUPPORTED_BASIC_CLASSIFIERS = [
     "comfor",
 ]
 
+
 def find_prompt_file(prompt: str) -> dict:
     if Path(prompt).exists():
         p = Path(prompt)
@@ -193,7 +194,7 @@ def load_samples(
     default="384",
 )
 @click.argument("image_path", type=click.Path(exists=True, file_okay=True, dir_okay=False))
-def classify(model: str, prompt: str, image_path: str, verbose: bool):
+def classify(image_path: str, model: str, prompt: str, verbose: bool, **kwargs):
     """
     Classify a single image as real or fake using the specified model.
 
@@ -201,6 +202,20 @@ def classify(model: str, prompt: str, image_path: str, verbose: bool):
     """
     log_file = "logs/classify.log"
     logger.add(log_file, rotation="2 MB", backtrace=True, diagnose=True)
+    if model in SUPPORTED_BASIC_CLASSIFIERS:
+        # Load basic classifier
+        classifier = load_basic_classifier(model, **kwargs)
+        # Classify image
+        pred = classifier.classify(Path(image_path), -1)
+        if pred == -1:
+            result = "unknown"
+        elif pred == 1:
+            result = "real"
+        else:
+            result = "fake"
+        sys.stdout.write(result)
+        sys.stdout.flush()
+        return
     try:
         # Load prompt & model
         prompt_config = find_prompt_file(prompt)
@@ -222,11 +237,13 @@ def classify(model: str, prompt: str, image_path: str, verbose: bool):
             result = "fake"
 
         # Print result only (for easy command line usage)
-        print(result)
+        sys.stdout.write(result)
+        sys.stdout.flush()
 
     except Exception as e:
         logger.error(f"Error during classification: {e!s}")
-        print("unknown")
+        sys.stdout.write("unknown")
+        sys.stdout.flush()
         sys.exit(1)
 
 
