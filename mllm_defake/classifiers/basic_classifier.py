@@ -125,26 +125,12 @@ class CannyClassifier(BasicClassifier):
         return 1 if edge_density > 0.0672 else 0
 
 
-class FreqClassifier(BasicClassifier):
-    def high_freq_content(self, sample: Path) -> float:
-        img = cv2.imread(str(sample), 0)
-        f_transform = np.fft.fft2(img)
-        f_shift = np.fft.fftshift(f_transform)
-        magnitude_spectrum = np.log(np.abs(f_shift) + 1)
-        high_freq_content = np.mean(magnitude_spectrum[magnitude_spectrum > np.median(magnitude_spectrum)])
-        return high_freq_content
-
-    def classify(self, sample: Path, label: int | bool) -> int:
-        high_freq_content = self.high_freq_content(sample)
-        return 1 if high_freq_content > 8.5 else 0
-
-
 class ComForClassifier(BasicClassifier):
     def __init__(
         self,
+        community_forensics_checkpoint_path: Path,
         real_samples: list[Path],
         fake_samples: list[Path],
-        community_forensics_checkpoint_path: Path,
         input_size: Literal["224", "384"] = "384",
         device: str | torch.device = "cuda:0",
     ) -> None:

@@ -30,7 +30,7 @@ class MLLMClassifier:
         fake_samples: list[Path],
     ):
         """
-        Decorators should be a dictionary of decorator names and their corresponding callable functions that modifies the cache dict during inference. The callable functions should have the signature `def decorator(cache: dict) -> None`.
+        Initialize the MLLMClassifier with the given prompt, model, and samples. Run `evaluate` method to evaluate the model.
         """
         if not isinstance(prompt, dict) or "format_version" not in prompt or prompt.get("format_version") != "3":
             raise ValueError(f"Invalid prompt. Expected a v3 JSON object, but got: {prompt}")
@@ -52,6 +52,9 @@ class MLLMClassifier:
         random.shuffle(self.samples)
 
     def get_decorator_func(self, decorator: str) -> callable:
+        """
+        Decorators should be a dictionary of decorator names and their corresponding callable functions that modifies the cache dict during inference. The callable functions should have the signature `def decorator(cache: dict) -> None`.
+        """
         module_name, func_name = decorator.rsplit(".", 1)
         try:
             module = importlib.import_module(module_name, package="mllm_defake.decorators")

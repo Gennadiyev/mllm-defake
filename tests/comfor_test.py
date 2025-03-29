@@ -18,9 +18,9 @@ def test_on_demo_images():
     timm_vit_checkpoint_path = Path("local/vit224")
     model_type = "224"
     classifier = ComForClassifier(
+        community_forensics_checkpoint_path,
         real_samples,
         fake_samples,
-        community_forensics_checkpoint_path=community_forensics_checkpoint_path,
         timm_vit_checkpoint_path=timm_vit_checkpoint_path,
         model_type=model_type,
         device=device,
