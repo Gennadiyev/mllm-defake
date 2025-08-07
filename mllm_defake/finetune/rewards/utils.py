@@ -1,4 +1,5 @@
 import json
+import math
 import re
 
 import imagesize
@@ -129,7 +130,7 @@ def cal_iou(completion: str, objects: dict, images: list[str]) -> float:
         box = box.replace("(", "[").replace(")", "]")
         # converted to [x1, y1], [x2, y2]
         try:
-            x1, y1, x2, y2 = json.loads([box])[0]
+            x1, y1, x2, y2 = json.loads(f"[{box}]")[0]
             bbox = _post_process_bbox([x1, y1, x2, y2], images, model_type)
             bboxes.append(bbox)
         except Exception:
@@ -139,7 +140,7 @@ def cal_iou(completion: str, objects: dict, images: list[str]) -> float:
     gt_bboxes = objects["bbox"]
     matched_bbox_indices = []
     for i, bbox in enumerate(bboxes):
-        min_distance, closest_bbox_index = float('inf'), -1
+        min_distance, closest_bbox_index = math.inf, -1
         for j, gt_bbox in enumerate(gt_bboxes):
             if j in matched_bbox_indices:
                 continue
