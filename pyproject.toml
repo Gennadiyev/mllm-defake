@@ -28,7 +28,14 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "isort", "pytest-cov"]
-finetune = ["ms-swift==3.2.1", "qwen_vl_utils>=0.0.6", "timm", "deepspeed==0.15.4", "imagesize"]
+finetune = [
+    "deepspeed==0.16.9",
+    "imagesize==1.4.1",
+    "ms-swift==3.5.3",
+    "qwen_vl_utils>=0.0.6",
+    "torch==2.6.0",
+    "vllm==0.8.5.post1"
+]
 comfor = ["timm>=0.9.12", "torchvision>=0.17.1"]
 
 [project.scripts]

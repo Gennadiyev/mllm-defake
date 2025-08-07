@@ -4,7 +4,7 @@ import sys
 import yaml
 from swift.llm.train import SwiftSft
 
-from mllm_defake.finetune.utils import get_torchrun_args
+from mllm_defake.finetune.utils import _get_torchrun_args
 
 
 def sft_train(config):
@@ -18,7 +18,7 @@ def sft_train(config):
     # hardcode to disable versioning
     cmd.append("--no_add_version")
     # run
-    torchrun_args = get_torchrun_args()
+    torchrun_args = _get_torchrun_args()
     if torchrun_args is None:
         cmd = ["python", *cmd]
     else:

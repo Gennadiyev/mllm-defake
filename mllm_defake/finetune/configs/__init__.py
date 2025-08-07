@@ -1,25 +1,12 @@
-import os
+from pathlib import Path
 
 
-this_dir = os.path.dirname(__file__)
-configs = os.listdir(this_dir)
+this_dir = Path(__file__).parent.resolve()
+configs = list(this_dir.glob("*.yml")) + list(this_dir.glob("*.yaml"))
 SUPPORTED_CONFIGS = dict()
 
 for config in configs:
-    if config.endswith(".yml") or config.endswith(".yaml"):
-        config_name = config.split(".")[0]
-        SUPPORTED_CONFIGS[config_name] = os.path.join(this_dir, config)
+    config_name = config.stem
+    SUPPORTED_CONFIGS[config_name] = str(config.resolve())
 
-
-settings_dir = os.path.join(this_dir, "deepspeed")
-settings = os.listdir(settings_dir)
-DEEPSPEED_SETTINGS = dict()
-
-for setting in settings:
-    if not setting.endswith(".json"):
-        continue
-    setting_name = setting.split(".")[0]
-    DEEPSPEED_SETTINGS[setting_name] = os.path.join(this_dir, "deepspeed", setting)
-
-
-__all__ = ["SUPPORTED_CONFIGS", "DEEPSPEED_SETTINGS"]
+__all__ = ["SUPPORTED_CONFIGS"]

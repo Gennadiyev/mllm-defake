@@ -700,11 +700,18 @@ def doc(experiment_name, summarize_to):
     help="List all pre-defined supported finetuning configurations.",
     is_flag=True,
 )
-def finetune(config, list_configs):
+@click.option(
+    "-m",
+    "--mode",
+    help="The finetuning mode to use. Available modes: sft, grpo. If not specified, the mode will be inferred from the config file name.",
+    default=""
+)
+def finetune(config, list_configs, mode):
     """
     Finetune the model using the specified configuration.
 
     CONFIG: local file in yml or yaml format, or one of the pre-defined supported configurations.
+    mode: The finetuning mode to use. If not specified, the mode will be inferred from the config file name.
     """
     if list_configs:
         logger.info("Pre-defined supported finetuning configurations:")
@@ -717,18 +724,18 @@ def finetune(config, list_configs):
         return
     config = SUPPORTED_CONFIGS.get(config, config)
     # get train mode
-    train_mode = config.split("/")[-1].split("_")[0]
-    if train_mode == "sft":
+    if mode == "":
+        mode = config.split("/")[-1].split("_")[0].lower()
+        logger.info(f"Inferring train mode from config file name: {mode}")
+    if mode == "sft":
         from mllm_defake.finetune.sft import sft_train
-
         sft_train(config)
-    elif train_mode == "grpo":
+    elif mode == "grpo":
         from mllm_defake.finetune.grpo import grpo_train
-
         grpo_train(config)
     else:
         logger.error(
-            f"Invalid train mode: {train_mode}"
+            f"Invalid train mode: {mode}"
             "train model is defined by the first part of the config file name, e.g. sft_qwen2_5_vl_3b.yml. "
             "supported train modes: sft, grpo"
         )

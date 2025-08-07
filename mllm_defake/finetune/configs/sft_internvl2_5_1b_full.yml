@@ -2,6 +2,7 @@
 # base
 train_type: "full"
 seed: 6737151
+model_kwargs: '{"max_num": 12, "input_size": 448}'
 # model
 model: "OpenGVLab/InternVL2_5-1B"
 torch_dtype: "bfloat16"
@@ -14,15 +15,15 @@ max_length: 8192
 # trainer
 output_dir: "output/InternVL2_5-1B-SFT-Full"
 deepspeed: "zero2"
+gradient_accumulation_steps: 16
 per_device_train_batch_size: 1
 learning_rate: 1e-5
 num_train_epochs: 3
-gradient_accumulation_steps: 16
 save_steps: 100
 save_total_limit: 5
 warmup_ratio: 0.05
 dataloader_num_workers: 4
 # tuner
-freeze_vit: true
-# other
-model_kwargs: '{"max_num": 12, "input_size": 448}'
+freeze_vit: false
+freeze_aligner: false
+

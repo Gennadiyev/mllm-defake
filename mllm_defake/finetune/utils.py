@@ -2,31 +2,15 @@ import os
 import random
 
 
-SPECIAL_TOKNES = {
-    "internvl2_5": {
-        "ref_object_start": "<ref>",
-        "ref_object_end": "</ref>",
-        "box_start": "<box>",
-        "box_end": "</box>",
-    },
-    "qwen2.5-vl": {
-        "ref_object_start": "<|object_ref_start|>",
-        "ref_object_end": "<|object_ref_end|>",
-        "box_start": "<|box_start|>",
-        "box_end": "<|box_end|>",
-    },
-}
-
-
-def use_torchrun():
+def _use_torchrun():
     nproc_per_node = os.getenv("NPROC_PER_NODE")
     if nproc_per_node is None:
         return False
     return True
 
 
-def get_torchrun_args():
-    if not use_torchrun():
+def _get_torchrun_args():
+    if not _use_torchrun():
         return None
 
     nnodes = int(os.getenv("NNODES", 1))
