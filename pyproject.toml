@@ -34,7 +34,7 @@ finetune = [
     "ms-swift==3.5.3",
     "qwen_vl_utils>=0.0.6",
     "torch==2.6.0",
-    "vllm==0.8.5.post1"
+    "vllm==0.10.2"
 ]
 comfor = ["timm>=0.9.12", "torchvision>=0.17.1"]
 
