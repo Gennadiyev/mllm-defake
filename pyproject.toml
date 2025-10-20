@@ -31,7 +31,7 @@ dev = ["pytest", "ruff", "isort", "pytest-cov"]
 finetune = [
     "deepspeed==0.16.9",
     "imagesize==1.4.1",
-    "ms-swift==3.5.3",
+    "ms-swift==3.9.1",
     "qwen_vl_utils>=0.0.6",
     "torch==2.6.0",
     "vllm==0.8.5.post1"
