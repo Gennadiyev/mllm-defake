@@ -11,7 +11,7 @@ Is the official implementation for:
 ## News
 
 - Jan-May, 2026. I tried to respond to all e-mails that requested this dataset during this period. Sorry if I missed yours :(
-- May, 2026. You can now access the FakeXplain dataset [here](https://public-debug.oss-cn-hangzhou.aliyuncs.com/FakeXplain.7z). Sorry for the 
+- May, 2026. You can now access the FakeXplain dataset [here](https://public-debug.oss-cn-hangzhou.aliyuncs.com/FakeXplain.7z). I apologize for the long wait.
 - Jun, 2026. We have **EXTENDED** the dataset to include Nanobanana 2 and GPT-Image-2, using automated annotation pipeline. Access the data from `gpt-image-2` [here](https://public-debug.oss-cn-hangzhou.aliyuncs.com/chameleon-gpt-image-2.7z) and `gemini-3.1-flash-image` [here](https://public-debug.oss-cn-hangzhou.aliyuncs.com/chameleon-nanobanana2.7z)!
 > During the conference, a lot of researchers asked about the later image generative models and detectors. Thanks for the input and discussions. Inspired by you, we have extended the dataset using `Gemini-3.1-Pro-Preview` as the annotator, using the same `FakeXplain`-flavored annotation, on a brand new set of generated images on Nanobanana 2 and GPT-Image-2. The prompts used are captions from Chameleon images, so it should pair well with the Chameleon dataset as real images.
 
